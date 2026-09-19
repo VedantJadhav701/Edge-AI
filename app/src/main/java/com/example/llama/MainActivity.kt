@@ -1,0 +1,408 @@
+package com.example.llama
+
+import android.net.Uri
+import android.os.Bundle
+import android.util.Log
+import android.widget.EditText
+import android.widget.ImageButton
+import android.widget.TextView
+import android.widget.Toast
+import androidx.activity.addCallback
+import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.arm.aichat.AiChat
+import com.arm.aichat.InferenceEngine
+import com.arm.aichat.gguf.GgufMetadata
+import com.arm.aichat.gguf.GgufMetadataReader
+import com.google.android.material.floatingactionbutton.FloatingActionButton
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileOutputStream
+import java.io.InputStream
+import java.util.UUID
+
+class MainActivity : AppCompatActivity() {
+
+    private lateinit var ggufTv: TextView
+    private lateinit var subtitleTv: TextView
+    private lateinit var messagesRv: RecyclerView
+    private lateinit var userInputEt: EditText
+    private lateinit var userActionFab: FloatingActionButton
+    private lateinit var btnSwitchModel: ImageButton
+    private lateinit var btnInfo: ImageButton
+    private lateinit var btnClear: ImageButton
+
+    private lateinit var engine: InferenceEngine
+    private var generationJob: Job? = null
+
+    private var isModelReady = false
+    private var isGenerating = false
+    private var activeModelName = "SmolLM2-360M-Instruct"
+    private val messages = mutableListOf<Message>()
+    private val messageAdapter = MessageAdapter(messages)
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        setContentView(R.layout.activity_main)
+        onBackPressedDispatcher.addCallback { Log.w(TAG, "Ignore back press for simplicity") }
+
+        ggufTv = findViewById(R.id.gguf)
+        subtitleTv = findViewById(R.id.subtitle_tv)
+        messagesRv = findViewById(R.id.messages)
+        messagesRv.layoutManager = LinearLayoutManager(this).apply { stackFromEnd = true }
+        messagesRv.adapter = messageAdapter
+        userInputEt = findViewById(R.id.user_input)
+        userActionFab = findViewById(R.id.fab)
+        btnSwitchModel = findViewById(R.id.btn_switch_model)
+        btnInfo = findViewById(R.id.btn_info)
+        btnClear = findViewById(R.id.btn_clear)
+
+        lifecycleScope.launch(Dispatchers.Default) {
+            engine = AiChat.getInferenceEngine(applicationContext)
+            checkExistingInternalModel()
+        }
+
+        btnSwitchModel.setOnClickListener { showModelPicker() }
+        subtitleTv.setOnClickListener { showModelPicker() }
+        btnInfo.setOnClickListener { showModelInfoDialog() }
+        btnClear.setOnClickListener { clearChat() }
+
+        userActionFab.setOnClickListener {
+            if (isGenerating) {
+                stopGeneration()
+            } else if (isModelReady) {
+                handleUserInput()
+            } else {
+                showModelPicker()
+            }
+        }
+    }
+
+    private suspend fun checkExistingInternalModel() {
+        val appModelsDir = ensureModelsDirectory()
+        val internalModels = appModelsDir.listFiles()?.filter { it.name.endsWith(".gguf") } ?: emptyList()
+
+        if (internalModels.isNotEmpty()) {
+            val defaultModel = internalModels.firstOrNull { it.name.contains("SmolLM2", ignoreCase = true) }
+                ?: internalModels.first()
+            val cleanName = cleanModelDisplayName(defaultModel.name)
+            loadModelFileDirectly(cleanName, defaultModel)
+        } else {
+            withContext(Dispatchers.Main) {
+                ggufTv.text = "⚡ Please select a GGUF model file to start"
+                userInputEt.hint = "Pick a GGUF model file..."
+                userActionFab.setImageResource(R.drawable.outline_folder_open_24)
+            }
+        }
+    }
+
+    private fun showModelPicker() {
+        val appModelsDir = ensureModelsDirectory()
+        val internalModels = appModelsDir.listFiles()?.filter { it.name.endsWith(".gguf") } ?: emptyList()
+
+        if (internalModels.isNotEmpty()) {
+            val optionsList = mutableListOf<String>()
+            internalModels.forEach { file ->
+                val cleanName = cleanModelDisplayName(file.name)
+                val marker = if (cleanName == activeModelName && isModelReady) " (Active)" else ""
+                optionsList.add("⚡ $cleanName$marker")
+            }
+            optionsList.add("📂 Select new GGUF file from storage...")
+
+            AlertDialog.Builder(this)
+                .setTitle("Select AI Model")
+                .setItems(optionsList.toTypedArray()) { _, which ->
+                    if (which < internalModels.size) {
+                        val selectedFile = internalModels[which]
+                        val cleanName = cleanModelDisplayName(selectedFile.name)
+                        lifecycleScope.launch(Dispatchers.IO) {
+                            if (isModelReady) {
+                                try { engine.cleanUp() } catch (e: Exception) { Log.e(TAG, "Error cleaning up", e) }
+                            }
+                            loadModelFileDirectly(cleanName, selectedFile)
+                        }
+                    } else {
+                        getContent.launch(arrayOf("*/*"))
+                    }
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
+        } else {
+            getContent.launch(arrayOf("*/*"))
+        }
+    }
+
+    private val getContent = registerForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        Log.i(TAG, "Selected file uri:\n $uri")
+        uri?.let { handleSelectedModel(it) }
+    }
+
+    private fun handleSelectedModel(uri: Uri) {
+        userActionFab.isEnabled = false
+        userInputEt.hint = "Parsing GGUF..."
+        ggufTv.text = "Parsing metadata from selected file \n$uri"
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            Log.i(TAG, "Parsing GGUF metadata...")
+            try {
+                var metadataName: String? = null
+                contentResolver.openInputStream(uri)?.use { input ->
+                    GgufMetadataReader.create().readStructuredMetadata(input)?.let { metadata ->
+                        metadataName = metadata.filename() + FILE_EXTENSION_GGUF
+                    }
+                }
+
+                val modelName = metadataName ?: ("model-" + System.currentTimeMillis() + FILE_EXTENSION_GGUF)
+                val cleanName = cleanModelDisplayName(modelName)
+
+                withContext(Dispatchers.Main) {
+                    ggufTv.text = "Copying model to app storage..."
+                    userInputEt.hint = "Copying model to storage..."
+                }
+
+                contentResolver.openInputStream(uri)?.use { input ->
+                    ensureModelFile(modelName, input)
+                }?.let { modelFile ->
+                    if (isModelReady) {
+                        try { engine.cleanUp() } catch (e: Exception) { Log.e(TAG, "Error cleaning up", e) }
+                    }
+                    loadModelFileDirectly(cleanName, modelFile)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to read GGUF file from URI: $uri", e)
+                withContext(Dispatchers.Main) {
+                    isModelReady = false
+                    ggufTv.text = "❌ Error reading file: ${e.localizedMessage}"
+                    userInputEt.hint = "Select another model..."
+                    userActionFab.setImageResource(R.drawable.outline_folder_open_24)
+                    userActionFab.isEnabled = true
+                }
+            }
+        }
+    }
+
+    private suspend fun loadModelFileDirectly(modelDisplayName: String, modelFile: File) {
+        withContext(Dispatchers.Main) {
+            userActionFab.isEnabled = false
+            userInputEt.hint = "Loading $modelDisplayName..."
+            ggufTv.text = "⏳ Loading model: $modelDisplayName..."
+        }
+
+        try {
+            engine.loadModel(modelFile.path)
+            activeModelName = modelDisplayName
+
+            withContext(Dispatchers.Main) {
+                isModelReady = true
+                subtitleTv.text = "$activeModelName • ARM Neon KleidiAI"
+                ggufTv.text = "⚡ $activeModelName Ready (100% Offline)"
+                userInputEt.hint = "Ask $activeModelName anything..."
+                userInputEt.isEnabled = true
+                userActionFab.setImageResource(R.drawable.outline_send_24)
+                userActionFab.isEnabled = true
+                Toast.makeText(this@MainActivity, "Loaded: $activeModelName", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to load model $modelDisplayName", e)
+            withContext(Dispatchers.Main) {
+                isModelReady = false
+                ggufTv.text = "❌ Failed to load model: ${e.localizedMessage}"
+                userInputEt.hint = "Pick another model file..."
+                userActionFab.setImageResource(R.drawable.outline_folder_open_24)
+                userActionFab.isEnabled = true
+            }
+        }
+    }
+
+    private suspend fun ensureModelFile(modelName: String, input: InputStream) =
+        withContext(Dispatchers.IO) {
+            File(ensureModelsDirectory(), modelName).also { file ->
+                if (!file.exists()) {
+                    Log.i(TAG, "Start copying file to $modelName")
+                    FileOutputStream(file).use { input.copyTo(it) }
+                    Log.i(TAG, "Finished copying file to $modelName")
+                }
+            }
+        }
+
+    private fun handleUserInput() {
+        val userMsg = userInputEt.text.toString().trim()
+
+        if (userMsg.isEmpty()) {
+            Toast.makeText(this, "Input message is empty!", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        userInputEt.text = null
+        userInputEt.isEnabled = false
+        isGenerating = true
+
+        userActionFab.setImageResource(R.drawable.ic_stop)
+        ggufTv.text = "⏳ Generating response..."
+
+        messages.add(
+            Message(
+                UUID.randomUUID().toString(),
+                userMsg,
+                true
+            )
+        )
+
+        val assistantIndex = messages.size
+
+        messages.add(
+            Message(
+                UUID.randomUUID().toString(),
+                "",
+                false
+            )
+        )
+
+        messageAdapter.notifyItemRangeInserted(assistantIndex - 1, 2)
+        messagesRv.scrollToPosition(assistantIndex)
+
+        val startTime = System.currentTimeMillis()
+        var firstTokenTime: Long? = null
+        var tokenCount = 0
+
+        val response = StringBuilder()
+
+        generationJob = lifecycleScope.launch(Dispatchers.Default) {
+            try {
+                engine.sendUserPrompt(userMsg, 512)
+                    .collect { token ->
+                        tokenCount++
+
+                        if (firstTokenTime == null) {
+                            firstTokenTime = System.currentTimeMillis()
+                        }
+
+                        response.append(token)
+                        val cleaned = response.toString()
+
+                        withContext(Dispatchers.Main) {
+                            if (assistantIndex < messages.size) {
+                                messages[assistantIndex] = messages[assistantIndex].copy(
+                                    content = cleaned
+                                )
+                                messageAdapter.notifyItemChanged(assistantIndex)
+                                messagesRv.scrollToPosition(assistantIndex)
+                            }
+                        }
+                    }
+            } finally {
+                withContext(Dispatchers.Main) {
+                    isGenerating = false
+                    userInputEt.isEnabled = true
+                    userActionFab.setImageResource(R.drawable.outline_send_24)
+
+                    val first = firstTokenTime ?: startTime
+                    val generationSeconds = (System.currentTimeMillis() - first) / 1000.0
+                    val tokPerSec = if (generationSeconds > 0 && tokenCount > 1) {
+                        (tokenCount - 1) / generationSeconds
+                    } else {
+                        0.0
+                    }
+
+                    val ttft = firstTokenTime?.let { it - startTime } ?: 0
+
+                    ggufTv.text = "⚡ %.1f tok/s | TTFT: %dms | Ctx: 4096 | Threads: 4"
+                        .format(tokPerSec, ttft)
+                }
+            }
+        }
+    }
+
+    private fun stopGeneration() {
+        generationJob?.cancel()
+        isGenerating = false
+        userInputEt.isEnabled = true
+        userActionFab.setImageResource(R.drawable.outline_send_24)
+        ggufTv.text = "⏹ Generation stopped"
+        Toast.makeText(this, "Generation stopped", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun clearChat() {
+        messages.clear()
+        messageAdapter.notifyDataSetChanged()
+        Toast.makeText(this, "Chat cleared", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun showModelInfoDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Active Model Info")
+            .setMessage(
+                "• Active Model: $activeModelName\n" +
+                "• Runtime: llama.cpp native\n" +
+                "• Acceleration: ARM Neon + KleidiAI\n" +
+                "• Device: Moto G54 5G\n" +
+                "• Mode: 100% Offline\n" +
+                "• Context Window: 4096 tokens\n" +
+                "• Thread Count: 4 CPU Threads"
+            )
+            .setPositiveButton("OK", null)
+            .show()
+    }
+
+    private fun cleanModelDisplayName(filename: String): String {
+        return filename
+            .replace(".gguf", "", ignoreCase = true)
+            .replace("-Q4_K_M", "", ignoreCase = true)
+            .replace("-Q4_0", "", ignoreCase = true)
+            .replace("-Q8_0", "", ignoreCase = true)
+    }
+
+    private fun ensureModelsDirectory() =
+        File(filesDir, DIRECTORY_MODELS).also {
+            if (it.exists() && !it.isDirectory) { it.delete() }
+            if (!it.exists()) { it.mkdir() }
+        }
+
+    override fun onStop() {
+        stopGeneration()
+        super.onStop()
+    }
+
+    override fun onDestroy() {
+        engine.destroy()
+        super.onDestroy()
+    }
+
+    companion object {
+        private val TAG = MainActivity::class.java.simpleName
+        private const val DIRECTORY_MODELS = "models"
+        private const val FILE_EXTENSION_GGUF = ".gguf"
+    }
+}
+
+@OptIn(ExperimentalStdlibApi::class)
+fun GgufMetadata.filename() = when {
+    basic.name != null -> {
+        basic.name?.let { name ->
+            basic.sizeLabel?.let { size ->
+                "$name-$size"
+            } ?: name
+        }
+    }
+    architecture?.architecture != null -> {
+        architecture?.architecture?.let { arch ->
+            basic.uuid?.let { uuid ->
+                "$arch-$uuid"
+            } ?: "$arch-${System.currentTimeMillis()}"
+        }
+    }
+    else -> {
+        "model-${System.currentTimeMillis().toHexString()}"
+    }
+}
