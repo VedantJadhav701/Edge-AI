@@ -46,6 +46,17 @@ android {
     }
 }
 
+afterEvaluate {
+    tasks.findByName("assembleDebug")?.doLast {
+        val apkDir = File(layout.buildDirectory.get().asFile, "outputs/apk/debug")
+        val defaultApk = File(apkDir, "app-debug.apk")
+        val targetApk = File(apkDir, "Edge-AI.apk")
+        if (defaultApk.exists()) {
+            defaultApk.copyTo(targetApk, overwrite = true)
+        }
+    }
+}
+
 kotlin {
     compilerOptions {
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
