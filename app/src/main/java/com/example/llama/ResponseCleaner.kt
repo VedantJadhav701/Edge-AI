@@ -47,6 +47,7 @@ object ResponseCleaner {
         }
 
         return text
+            .replace(Regex("0{2,}$"), "")
             .replace(Regex("@{2,}"), "")
             .trimStart()
     }
