@@ -307,14 +307,6 @@ static std::string chat_add_and_format(
 
     common_chat_templates_inputs inputs;
 
-    // IMPORTANT:
-    // Use Qwen's Jinja chat template.
-    inputs.use_jinja = true;
-
-    // IMPORTANT:
-    // Disable Qwen3 thinking/reasoning.
-    inputs.enable_thinking = false;
-
     std::string formatted_previous;
 
     // Render existing conversation.
