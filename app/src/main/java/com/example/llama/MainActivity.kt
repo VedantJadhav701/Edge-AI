@@ -439,19 +439,20 @@ class MainActivity : AppCompatActivity() {
                     userActionFab.isEnabled = true
                     userActionFab.setImageResource(R.drawable.outline_send_24)
 
-                    val finalResponseText = response.toString().trim()
-                    if (finalResponseText.isEmpty()) {
-                        if (assistantIndex < messages.size) {
-                            messages.removeAt(assistantIndex)
-                            messageAdapter.notifyItemRemoved(assistantIndex)
-                        }
+                    val rawResponse = response.toString()
+                    val displayResponse = if (rawResponse.trim().isEmpty()) {
+                        if (rawResponse.isNotEmpty()) rawResponse else "[No text generated]"
                     } else {
-                        if (assistantIndex < messages.size) {
-                            val finalMsg = messages[assistantIndex]
-                            currentSession.messages.add(finalMsg)
-                            chatSessionManager.saveSession(currentSession)
-                            refreshHistorySidebar()
-                        }
+                        rawResponse
+                    }
+
+                    if (assistantIndex < messages.size) {
+                        val finalMsg = messages[assistantIndex].copy(content = displayResponse)
+                        messages[assistantIndex] = finalMsg
+                        messageAdapter.notifyItemChanged(assistantIndex)
+                        currentSession.messages.add(finalMsg)
+                        chatSessionManager.saveSession(currentSession)
+                        refreshHistorySidebar()
                     }
 
                     val first = firstTokenTime ?: startTime
