@@ -457,7 +457,7 @@ class MainActivity : AppCompatActivity() {
 
                     val ttft = firstTokenTime?.let { it - startTime } ?: 0
 
-                    ggufTv.text = "⚡ %.1f tok/s | TTFT: %dms | Ctx: 4096 | Threads: 4"
+                    ggufTv.text = "⚡ %.1f tok/s | TTFT: %dms | Ctx: 4096 | Threads: 1"
                         .format(tokPerSec, ttft)
                 }
             }
@@ -499,7 +499,7 @@ class MainActivity : AppCompatActivity() {
                 "• Device: Moto G54 5G\n" +
                 "• Mode: 100% Offline\n" +
                 "• Context Window: 4096 tokens\n" +
-                "• Thread Count: 4 CPU Threads"
+                "• Thread Count: 1 CPU Thread (Perfect Quality Mode)"
             )
             .setPositiveButton("OK", null)
             .show()
