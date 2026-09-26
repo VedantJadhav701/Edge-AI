@@ -1,5 +1,6 @@
 package com.example.llama
 
+import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
@@ -7,6 +8,7 @@ import android.view.View
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.addCallback
@@ -14,6 +16,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.lifecycle.lifecycleScope
@@ -23,6 +26,7 @@ import com.arm.aichat.AiChat
 import com.arm.aichat.InferenceEngine
 import com.arm.aichat.gguf.GgufMetadata
 import com.arm.aichat.gguf.GgufMetadataReader
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import kotlinx.coroutines.Dispatchers
@@ -48,8 +52,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var userInputEt: EditText
     private lateinit var userActionFab: FloatingActionButton
     private lateinit var btnSwitchModel: ImageButton
+    private lateinit var btnThemeToggle: ImageButton
     private lateinit var btnInfo: ImageButton
     private lateinit var btnClear: ImageButton
+
+    private lateinit var btnAttach: ImageButton
+    private lateinit var composerModelChip: TextView
 
     private lateinit var emptyStateView: View
     private lateinit var chip1: TextView
@@ -68,7 +76,8 @@ class MainActivity : AppCompatActivity() {
     private val messages = mutableListOf<Message>()
     private val messageAdapter = MessageAdapter(
         messages = messages,
-        onRegenerateClicked = { regenerateLastTurn() }
+        onRegenerateClicked = { regenerateLastTurn() },
+        onShareClicked = { text -> shareText(text) }
     )
 
     private lateinit var chatSessionManager: ChatSessionManager
@@ -77,6 +86,14 @@ class MainActivity : AppCompatActivity() {
     private var currentSession = ChatSession()
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+        val isDarkMode = prefs.getBoolean(KEY_DARK_MODE, true)
+        if (isDarkMode) {
+            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
+        } else {
+            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
+        }
+
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_main)
@@ -101,8 +118,12 @@ class MainActivity : AppCompatActivity() {
         userInputEt = findViewById(R.id.user_input)
         userActionFab = findViewById(R.id.fab)
         btnSwitchModel = findViewById(R.id.btn_switch_model)
+        btnThemeToggle = findViewById(R.id.btn_theme_toggle)
         btnInfo = findViewById(R.id.btn_info)
         btnClear = findViewById(R.id.btn_clear)
+
+        btnAttach = findViewById(R.id.btn_attach)
+        composerModelChip = findViewById(R.id.composer_model_chip)
 
         emptyStateView = findViewById(R.id.empty_state_view)
         chip1 = findViewById(R.id.chip_1)
@@ -131,8 +152,22 @@ class MainActivity : AppCompatActivity() {
         }
         headerTitleContainer.setOnClickListener { toggleTelemetry() }
 
+        btnThemeToggle.setOnClickListener {
+            val currentMode = prefs.getBoolean(KEY_DARK_MODE, true)
+            val newMode = !currentMode
+            prefs.edit().putBoolean(KEY_DARK_MODE, newMode).apply()
+            if (newMode) {
+                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
+            } else {
+                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
+            }
+        }
+
+        composerModelChip.setOnClickListener { showModelPickerBottomSheet() }
+        btnAttach.setOnClickListener { showAttachBottomSheet() }
+
         chip1.setOnClickListener {
-            userInputEt.setText("Explain a complex topic in simple terms")
+            userInputEt.setText("Explain quantum computing in simple terms")
             userInputEt.requestFocus()
         }
         chip2.setOnClickListener {
@@ -149,7 +184,7 @@ class MainActivity : AppCompatActivity() {
             checkExistingInternalModel()
         }
 
-        btnSwitchModel.setOnClickListener { showModelPicker() }
+        btnSwitchModel.setOnClickListener { showModelPickerBottomSheet() }
         btnInfo.setOnClickListener { showModelInfoDialog() }
         btnClear.setOnClickListener { clearChat() }
 
@@ -159,7 +194,7 @@ class MainActivity : AppCompatActivity() {
             } else if (isModelReady) {
                 handleUserInput()
             } else {
-                showModelPicker()
+                showModelPickerBottomSheet()
             }
         }
     }
@@ -189,7 +224,11 @@ class MainActivity : AppCompatActivity() {
                     startNewChatSession()
                 }
                 Toast.makeText(this, "Deleted chat session", Toast.LENGTH_SHORT).show()
-            }
+            },
+            onSessionLongClick = { session, position ->
+                showSessionOptionsBottomSheet(session, position)
+            },
+            activeSessionId = currentSession.id
         )
         historyRv.adapter = chatSessionAdapter
     }
@@ -197,6 +236,7 @@ class MainActivity : AppCompatActivity() {
     private fun refreshHistorySidebar() {
         savedSessions.clear()
         savedSessions.addAll(chatSessionManager.loadAllSessions())
+        chatSessionAdapter.activeSessionId = currentSession.id
         chatSessionAdapter.notifyDataSetChanged()
     }
 
@@ -242,10 +282,142 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        refreshHistorySidebar()
         if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
             drawerLayout.closeDrawer(GravityCompat.START)
         }
         Toast.makeText(this, "Loaded chat: ${session.title}", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun showSessionOptionsBottomSheet(session: ChatSession, position: Int) {
+        val dialog = BottomSheetDialog(this)
+        val sheetView = layoutInflater.inflate(R.layout.bottom_sheet_session_options, null)
+        dialog.setContentView(sheetView)
+
+        sheetView.findViewById<TextView>(R.id.session_options_title).text = session.title
+
+        sheetView.findViewById<View>(R.id.option_share).setOnClickListener {
+            dialog.dismiss()
+            shareChatHistory(session)
+        }
+
+        sheetView.findViewById<View>(R.id.option_rename).setOnClickListener {
+            dialog.dismiss()
+            showRenameDialog(session)
+        }
+
+        sheetView.findViewById<View>(R.id.option_delete).setOnClickListener {
+            dialog.dismiss()
+            chatSessionManager.deleteSession(session.id)
+            chatSessionAdapter.removeAt(position)
+            if (currentSession.id == session.id) {
+                startNewChatSession()
+            }
+            Toast.makeText(this, "Deleted chat", Toast.LENGTH_SHORT).show()
+        }
+
+        dialog.show()
+    }
+
+    private fun shareChatHistory(session: ChatSession) {
+        val sb = StringBuilder()
+        sb.append("Edge AI Chat: ").append(session.title).append("\n\n")
+        session.messages.forEach { msg ->
+            val sender = if (msg.isUser) "User" else "Assistant"
+            sb.append(sender).append(": ").append(msg.content).append("\n\n")
+        }
+        shareText(sb.toString())
+    }
+
+    private fun showRenameDialog(session: ChatSession) {
+        val input = EditText(this)
+        input.setText(session.title)
+        AlertDialog.Builder(this)
+            .setTitle("Rename Chat")
+            .setView(input)
+            .setPositiveButton("Save") { _, _ ->
+                val newTitle = input.text.toString().trim()
+                if (newTitle.isNotEmpty()) {
+                    session.title = newTitle
+                    chatSessionManager.saveSession(session)
+                    refreshHistorySidebar()
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun shareText(text: String) {
+        val sendIntent: Intent = Intent().apply {
+            action = Intent.ACTION_SEND
+            putExtra(Intent.EXTRA_TEXT, text)
+            type = "text/plain"
+        }
+        val shareIntent = Intent.createChooser(sendIntent, "Share chat")
+        startActivity(shareIntent)
+    }
+
+    private fun showAttachBottomSheet() {
+        val dialog = BottomSheetDialog(this)
+        val sheetView = layoutInflater.inflate(R.layout.bottom_sheet_attach, null)
+        dialog.setContentView(sheetView)
+
+        sheetView.findViewById<View>(R.id.btn_import_gguf_attach).setOnClickListener {
+            dialog.dismiss()
+            getContent.launch(arrayOf("*/*"))
+        }
+
+        dialog.show()
+    }
+
+    private fun showModelPickerBottomSheet() {
+        val dialog = BottomSheetDialog(this)
+        val sheetView = layoutInflater.inflate(R.layout.bottom_sheet_model_picker, null)
+        dialog.setContentView(sheetView)
+
+        val appModelsDir = ensureModelsDirectory()
+        val internalModels = appModelsDir.listFiles()?.filter { it.name.endsWith(".gguf") } ?: emptyList()
+
+        val modelsRv = sheetView.findViewById<RecyclerView>(R.id.models_rv)
+        modelsRv.layoutManager = LinearLayoutManager(this)
+
+        val modelItems = internalModels.map { file ->
+            val cleanName = cleanModelDisplayName(file.name)
+            val sizeMb = file.length() / (1024.0 * 1024.0)
+            val sizeStr = if (sizeMb >= 1024) String.format("%.2f GB", sizeMb / 1024.0) else String.format("%.1f MB", sizeMb)
+            val is4B = file.name.contains("4B", ignoreCase = true)
+            val desc = if (is4B) "Faster, ultra-low RAM footprint" else "Higher capability & detail"
+            ModelItem(
+                file = file,
+                cleanName = cleanName,
+                sizeStr = sizeStr,
+                quantBadge = "Q1_0",
+                description = desc,
+                isActive = cleanName == activeModelName && isModelReady
+            )
+        }
+
+        val adapter = ModelPickerAdapter(modelItems) { item ->
+            dialog.dismiss()
+            lifecycleScope.launch(Dispatchers.IO) {
+                if (isModelReady) {
+                    try { engine.cleanUp() } catch (e: Exception) { Log.e(TAG, "Error cleaning up", e) }
+                }
+                loadModelFileDirectly(item.cleanName, item.file)
+            }
+        }
+        modelsRv.adapter = adapter
+
+        sheetView.findViewById<ImageButton>(R.id.btn_close_model_picker).setOnClickListener {
+            dialog.dismiss()
+        }
+
+        sheetView.findViewById<View>(R.id.btn_import_from_sheet).setOnClickListener {
+            dialog.dismiss()
+            getContent.launch(arrayOf("*/*"))
+        }
+
+        dialog.show()
     }
 
     private suspend fun checkExistingInternalModel() {
@@ -268,44 +440,6 @@ class MainActivity : AppCompatActivity() {
                 userInputEt.hint = "Pick a GGUF model file..."
                 userActionFab.setImageResource(R.drawable.outline_folder_open_24)
             }
-        }
-    }
-
-    private fun showModelPicker() {
-        val appModelsDir = ensureModelsDirectory()
-        val internalModels = appModelsDir.listFiles()?.filter { it.name.endsWith(".gguf") } ?: emptyList()
-
-        if (internalModels.isNotEmpty()) {
-            val optionsList = mutableListOf<String>()
-            internalModels.forEach { file ->
-                val cleanName = cleanModelDisplayName(file.name)
-                val sizeMb = file.length() / (1024.0 * 1024.0)
-                val sizeStr = if (sizeMb >= 1024) String.format("%.2f GB", sizeMb / 1024.0) else String.format("%.1f MB", sizeMb)
-                val marker = if (cleanName == activeModelName && isModelReady) " (Active)" else ""
-                optionsList.add("⚡ $cleanName • $sizeStr$marker")
-            }
-            optionsList.add("📂 Select new GGUF file from storage...")
-
-            AlertDialog.Builder(this)
-                .setTitle("Select AI Model")
-                .setItems(optionsList.toTypedArray()) { _, which ->
-                    if (which < internalModels.size) {
-                        val selectedFile = internalModels[which]
-                        val cleanName = cleanModelDisplayName(selectedFile.name)
-                        lifecycleScope.launch(Dispatchers.IO) {
-                            if (isModelReady) {
-                                try { engine.cleanUp() } catch (e: Exception) { Log.e(TAG, "Error cleaning up", e) }
-                            }
-                            loadModelFileDirectly(cleanName, selectedFile)
-                        }
-                    } else {
-                        getContent.launch(arrayOf("*/*"))
-                    }
-                }
-                .setNegativeButton("Cancel", null)
-                .show()
-        } else {
-            getContent.launch(arrayOf("*/*"))
         }
     }
 
@@ -418,6 +552,7 @@ class MainActivity : AppCompatActivity() {
             withContext(Dispatchers.Main) {
                 isModelReady = true
                 subtitleTv.text = "$activeModelName • ARM Neon KleidiAI"
+                composerModelChip.text = "⚡ $activeModelName ▾"
                 ggufTv.text = "⚡ $activeModelName Ready (100% Offline)"
                 userInputEt.hint = "Ask $activeModelName anything..."
                 userInputEt.isEnabled = true
@@ -676,6 +811,7 @@ class MainActivity : AppCompatActivity() {
         private const val FILE_EXTENSION_GGUF = ".gguf"
         private const val PREFS_NAME = "EdgeAiPrefs"
         private const val KEY_LAST_USED_MODEL = "last_used_model_filename"
+        private const val KEY_DARK_MODE = "is_dark_mode"
     }
 }
 

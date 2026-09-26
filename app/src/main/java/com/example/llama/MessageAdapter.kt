@@ -3,9 +3,11 @@ package com.example.llama
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -19,7 +21,8 @@ data class Message(
 
 class MessageAdapter(
     private val messages: List<Message>,
-    private val onRegenerateClicked: (() -> Unit)? = null
+    private val onRegenerateClicked: (() -> Unit)? = null,
+    private val onShareClicked: ((String) -> Unit)? = null
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     companion object {
@@ -52,7 +55,22 @@ class MessageAdapter(
             setupUserLongClick(textView, context, message.content)
         } else if (holder is AssistantMessageViewHolder) {
             val textView = holder.itemView.findViewById<TextView>(R.id.msg_content)
+            val btnCopy = holder.itemView.findViewById<ImageButton>(R.id.btn_action_copy)
+            val btnShare = holder.itemView.findViewById<ImageButton>(R.id.btn_action_share)
+            val btnRegenerate = holder.itemView.findViewById<ImageButton>(R.id.btn_action_regenerate)
+
             textView.text = ResponseCleaner.formatMarkdown(message.content)
+
+            btnCopy.setOnClickListener { copyToClipboard(context, message.content) }
+            btnShare.setOnClickListener {
+                if (onShareClicked != null) {
+                    onShareClicked.invoke(message.content)
+                } else {
+                    shareText(context, message.content)
+                }
+            }
+            btnRegenerate.setOnClickListener { onRegenerateClicked?.invoke() }
+
             setupAssistantLongClick(textView, context, message.content)
         }
     }
@@ -66,12 +84,13 @@ class MessageAdapter(
 
     private fun setupAssistantLongClick(view: View, context: Context, text: String) {
         view.setOnLongClickListener {
-            val options = arrayOf("📋 Copy Text", "🔄 Regenerate Response")
+            val options = arrayOf("📋 Copy Text", "📤 Share", "🔄 Regenerate Response")
             AlertDialog.Builder(context)
                 .setItems(options) { _, which ->
                     when (which) {
                         0 -> copyToClipboard(context, text)
-                        1 -> onRegenerateClicked?.invoke()
+                        1 -> shareText(context, text)
+                        2 -> onRegenerateClicked?.invoke()
                     }
                 }
                 .show()
@@ -84,6 +103,16 @@ class MessageAdapter(
         val clip = ClipData.newPlainText("Message Text", text)
         clipboard.setPrimaryClip(clip)
         Toast.makeText(context, "Copied to clipboard!", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun shareText(context: Context, text: String) {
+        val sendIntent: Intent = Intent().apply {
+            action = Intent.ACTION_SEND
+            putExtra(Intent.EXTRA_TEXT, text)
+            type = "text/plain"
+        }
+        val shareIntent = Intent.createChooser(sendIntent, "Share message")
+        context.startActivity(shareIntent)
     }
 
     override fun getItemCount(): Int = messages.size

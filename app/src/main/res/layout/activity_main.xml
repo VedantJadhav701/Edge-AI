@@ -24,13 +24,13 @@
             android:elevation="1dp"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingHorizontal="12dp"
+            android:paddingHorizontal="10dp"
             android:paddingVertical="8dp">
 
             <ImageButton
                 android:id="@+id/btn_menu"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Open Navigation Drawer"
                 android:src="@drawable/ic_menu"
@@ -40,7 +40,7 @@
                 android:id="@+id/header_title_container"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
+                android:layout_marginStart="6dp"
                 android:layout_weight="1"
                 android:clickable="true"
                 android:focusable="true"
@@ -66,7 +66,7 @@
                         android:id="@+id/offline_badge"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="8dp"
+                        android:layout_marginStart="6dp"
                         android:background="@drawable/bg_offline_badge"
                         android:paddingHorizontal="6dp"
                         android:paddingVertical="2dp"
@@ -86,7 +86,7 @@
                         android:id="@+id/subtitle_tv"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Bonsai-Q1_0 • ARM Neon KleidiAI"
+                        android:text="Bonsai-Q1_0 • ARM Neon"
                         android:textColor="@color/text_secondary"
                         android:textSize="12sp" />
 
@@ -102,9 +102,19 @@
             </LinearLayout>
 
             <ImageButton
+                android:id="@+id/btn_theme_toggle"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Toggle Theme"
+                android:src="@drawable/ic_theme"
+                app:tint="@color/text_primary" />
+
+            <ImageButton
                 android:id="@+id/btn_switch_model"
-                android:layout_width="38dp"
-                android:layout_height="38dp"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_marginStart="2dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Switch Model"
                 android:src="@drawable/ic_model"
@@ -112,8 +122,8 @@
 
             <ImageButton
                 android:id="@+id/btn_info"
-                android:layout_width="38dp"
-                android:layout_height="38dp"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
                 android:layout_marginStart="2dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Model Info"
@@ -122,8 +132,8 @@
 
             <ImageButton
                 android:id="@+id/btn_clear"
-                android:layout_width="38dp"
-                android:layout_height="38dp"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
                 android:layout_marginStart="2dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Clear Chat"
@@ -131,7 +141,7 @@
                 app:tint="@color/text_primary" />
         </LinearLayout>
 
-        <!-- Expandable Collapsible Telemetry Panel -->
+        <!-- Collapsible Telemetry Panel -->
         <LinearLayout
             android:id="@+id/telemetry_panel"
             android:layout_width="match_parent"
@@ -156,7 +166,7 @@
             android:layout_height="1dp"
             app:dividerColor="@color/divider_color" />
 
-        <!-- Chat Container (Messages + Empty State) -->
+        <!-- Chat Frame (Messages + Empty State) -->
         <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
@@ -172,7 +182,7 @@
                 android:scrollbars="vertical"
                 tools:listitem="@layout/item_message_assistant" />
 
-            <!-- Empty State View with Greeting & Starter Chips -->
+            <!-- Empty State View -->
             <LinearLayout
                 android:id="@+id/empty_state_view"
                 android:layout_width="match_parent"
@@ -185,7 +195,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="What can I help with today?"
+                    android:text="What should we talk about?"
                     android:textColor="@color/text_primary"
                     android:textSize="22sp"
                     android:textStyle="bold" />
@@ -215,7 +225,7 @@
                         android:foreground="?attr/selectableItemBackground"
                         android:paddingHorizontal="16dp"
                         android:paddingVertical="12dp"
-                        android:text="💡 Explain a complex topic in simple terms"
+                        android:text="💡 Explain quantum computing in simple terms"
                         android:textColor="@color/chip_text"
                         android:textSize="14sp" />
 
@@ -230,7 +240,7 @@
                         android:foreground="?attr/selectableItemBackground"
                         android:paddingHorizontal="16dp"
                         android:paddingVertical="12dp"
-                        android:text="📝 Help me draft a clear email or document"
+                        android:text="📝 Help me draft a clear project update email"
                         android:textColor="@color/chip_text"
                         android:textSize="14sp" />
 
@@ -245,42 +255,83 @@
                         android:foreground="?attr/selectableItemBackground"
                         android:paddingHorizontal="16dp"
                         android:paddingVertical="12dp"
-                        android:text="🚀 Brainstorm creative ideas for a project"
+                        android:text="🚀 Brainstorm 5 creative app features for on-device AI"
                         android:textColor="@color/chip_text"
                         android:textSize="14sp" />
                 </LinearLayout>
             </LinearLayout>
         </FrameLayout>
 
+        <!-- Offline Value Prop Disclaimer Line -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:paddingTop="2dp"
+            android:paddingBottom="2dp"
+            android:text="🔒 Runs 100% offline on this device"
+            android:textColor="@color/text_secondary"
+            android:textSize="11sp" />
+
         <!-- Floating Pill Input Composer Bar -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginHorizontal="16dp"
-            android:layout_marginTop="4dp"
+            android:layout_marginTop="2dp"
             android:layout_marginBottom="12dp"
             android:background="@drawable/bg_composer"
             android:elevation="4dp"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingHorizontal="12dp"
+            android:paddingHorizontal="10dp"
             android:paddingVertical="4dp">
 
+            <!-- [+] Attach Button -->
+            <ImageButton
+                android:id="@+id/btn_attach"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Attach"
+                android:src="@drawable/ic_plus"
+                app:tint="@color/text_primary" />
+
+            <!-- Active Model Chip -->
+            <TextView
+                android:id="@+id/composer_model_chip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:background="@drawable/bg_model_chip"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackground"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="4dp"
+                android:text="⚡ Bonsai-Q1_0 ▾"
+                android:textColor="@color/text_secondary"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <!-- Input EditText -->
             <EditText
                 android:id="@+id/user_input"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
                 android:layout_weight="1"
                 android:background="@null"
                 android:enabled="false"
                 android:hint="Ask Edge AI anything..."
                 android:maxLines="4"
-                android:paddingHorizontal="12dp"
+                android:paddingHorizontal="6dp"
                 android:paddingVertical="10dp"
                 android:textColor="@color/text_primary"
                 android:textColorHint="@color/text_secondary"
-                android:textSize="16sp" />
+                android:textSize="15sp" />
 
+            <!-- Send / Stop FAB -->
             <com.google.android.material.floatingactionbutton.FloatingActionButton
                 android:id="@+id/fab"
                 style="@style/Widget.Material3.FloatingActionButton.Primary"
@@ -293,7 +344,7 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- Modern Sidebar Navigation Drawer -->
+    <!-- Navigation Drawer -->
     <LinearLayout
         android:id="@+id/navigation_drawer"
         android:layout_width="280dp"
@@ -322,16 +373,6 @@
                 android:textColor="@color/sidebar_text"
                 android:textSize="18sp"
                 android:textStyle="bold" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_new_chat"
-                style="@style/Widget.Material3.Button.TonalButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="New Chat"
-                android:textColor="@color/sidebar_text"
-                app:icon="@drawable/ic_add"
-                app:iconTint="@color/sidebar_text" />
         </LinearLayout>
 
         <com.google.android.material.divider.MaterialDivider
@@ -345,7 +386,7 @@
             android:layout_height="wrap_content"
             android:paddingTop="16dp"
             android:paddingBottom="8dp"
-            android:text="CHAT HISTORY"
+            android:text="RECENTS"
             android:textColor="@color/sidebar_muted"
             android:textSize="11sp"
             android:textStyle="bold" />
@@ -365,10 +406,24 @@
             android:layout_height="1dp"
             app:dividerColor="@color/divider_color" />
 
+        <!-- Pinned New Chat Pill Button at bottom of sidebar -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_new_chat"
+            style="@style/Widget.Material3.Button.TonalButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="+ New Chat"
+            android:textColor="@color/sidebar_text"
+            app:cornerRadius="20dp"
+            app:icon="@drawable/ic_add"
+            app:iconTint="@color/sidebar_text" />
+
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:paddingTop="12dp"
+            android:gravity="center_horizontal"
+            android:paddingTop="8dp"
             android:text="⚡ 100% Offline Local Inference"
             android:textColor="@color/sidebar_muted"
             android:textSize="11sp" />

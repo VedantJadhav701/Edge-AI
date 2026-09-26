@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginHorizontal="16dp"
@@ -16,5 +17,44 @@
         android:textColor="@color/text_primary"
         android:textIsSelectable="true"
         android:textSize="16sp" />
+
+    <!-- Action Icons Row (Copy, Share, Regenerate) -->
+    <LinearLayout
+        android:id="@+id/action_bar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageButton
+            android:id="@+id/btn_action_copy"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Copy Text"
+            android:src="@drawable/ic_copy"
+            app:tint="@color/text_secondary" />
+
+        <ImageButton
+            android:id="@+id/btn_action_share"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_marginStart="12dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Share Text"
+            android:src="@drawable/ic_share"
+            app:tint="@color/text_secondary" />
+
+        <ImageButton
+            android:id="@+id/btn_action_regenerate"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_marginStart="12dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Regenerate"
+            android:src="@drawable/ic_refresh"
+            app:tint="@color/text_secondary" />
+    </LinearLayout>
 
 </LinearLayout>

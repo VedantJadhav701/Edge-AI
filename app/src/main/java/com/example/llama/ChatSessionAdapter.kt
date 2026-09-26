@@ -1,5 +1,6 @@
 package com.example.llama
 
+import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -10,7 +11,9 @@ import androidx.recyclerview.widget.RecyclerView
 class ChatSessionAdapter(
     private val sessions: MutableList<ChatSession>,
     private val onSessionClick: (ChatSession) -> Unit,
-    private val onDeleteClick: (ChatSession, Int) -> Unit
+    private val onDeleteClick: (ChatSession, Int) -> Unit,
+    private val onSessionLongClick: ((ChatSession, Int) -> Unit)? = null,
+    var activeSessionId: String? = null
 ) : RecyclerView.Adapter<ChatSessionAdapter.SessionViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SessionViewHolder {
@@ -23,7 +26,17 @@ class ChatSessionAdapter(
         holder.titleTv.text = session.title
         holder.timeTv.text = session.getFormattedDate()
 
+        if (session.id == activeSessionId) {
+            holder.itemView.setBackgroundColor(Color.parseColor("#1E293B"))
+        } else {
+            holder.itemView.setBackgroundColor(Color.TRANSPARENT)
+        }
+
         holder.itemView.setOnClickListener { onSessionClick(session) }
+        holder.itemView.setOnLongClickListener {
+            onSessionLongClick?.invoke(session, position)
+            true
+        }
         holder.deleteBtn.setOnClickListener { onDeleteClick(session, position) }
     }
 
