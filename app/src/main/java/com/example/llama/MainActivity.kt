@@ -403,7 +403,7 @@ class MainActivity : AppCompatActivity() {
 
         generationJob = lifecycleScope.launch(Dispatchers.Default) {
             try {
-                engine.sendUserPrompt(userMsg, 256)
+                engine.sendUserPrompt(userMsg, 128)
                     .collect { token ->
                         tokenCount++
 
