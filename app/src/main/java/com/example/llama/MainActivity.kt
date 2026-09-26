@@ -521,7 +521,7 @@ class MainActivity : AppCompatActivity() {
             .replace("-Q8_0", "", ignoreCase = true)
 
         if (clean.startsWith("qwen3-", ignoreCase = true) || clean.startsWith("model-", ignoreCase = true)) {
-            return "Bonsai-8B-Q1_0"
+            return "Bonsai-Q1_0"
         }
         return clean
     }
