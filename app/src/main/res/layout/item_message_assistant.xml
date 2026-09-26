@@ -8,13 +8,13 @@
 
     <TextView
         android:id="@+id/msg_content"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@drawable/bg_assistant_message"
-        android:paddingHorizontal="16dp"
-        android:paddingVertical="12dp"
-        android:textSize="15sp"
-        android:lineSpacingExtra="3dp"
+        android:background="@null"
+        android:paddingHorizontal="4dp"
+        android:paddingVertical="6dp"
+        android:textSize="16sp"
+        android:lineSpacingExtra="4dp"
         android:textIsSelectable="true"
         android:textColor="#0F172A" />
 </LinearLayout>

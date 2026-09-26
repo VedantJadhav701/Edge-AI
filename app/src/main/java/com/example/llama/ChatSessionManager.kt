@@ -17,8 +17,23 @@ data class ChatSession(
     val messages: MutableList<Message> = mutableListOf()
 ) {
     fun getFormattedDate(): String {
-        val sdf = SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault())
-        return sdf.format(Date(timestamp))
+        val now = System.currentTimeMillis()
+        val diff = now - timestamp
+        val minutes = diff / (1000 * 60)
+        val hours = diff / (1000 * 60 * 60)
+        val days = diff / (1000 * 60 * 60 * 24)
+
+        return when {
+            minutes < 2 -> "Just now"
+            minutes < 60 -> "${minutes}m ago"
+            hours < 24 -> "${hours}h ago"
+            days == 1L -> "Yesterday"
+            days < 7 -> "${days}d ago"
+            else -> {
+                val sdf = SimpleDateFormat("MMM dd", Locale.getDefault())
+                sdf.format(Date(timestamp))
+            }
+        }
     }
 }
 
