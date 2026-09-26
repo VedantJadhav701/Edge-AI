@@ -23,23 +23,10 @@ object ResponseCleaner {
         // Remove ANSI escape sequences
         text = text.replace(ansiRegex, "")
 
-        // Remove thinking blocks completely
-        text = text.replace(
-            Regex(
-                "<think>.*?</think>",
-                setOf(
-                    RegexOption.DOT_MATCHES_ALL,
-                    RegexOption.IGNORE_CASE
-                )
-            ),
-            ""
-        )
-
-        // Remove incomplete thinking section during streaming
-        val thinkStart = text.indexOf("<think>")
-        if (thinkStart >= 0) {
-            text = text.substring(0, thinkStart)
-        }
+        // Remove thinking tag markers while preserving reasoning content for visibility
+        text = text
+            .replace("<think>", "", ignoreCase = true)
+            .replace("</think>", "", ignoreCase = true)
 
         // Filter out extreme runaway character repetition loops
         text = text.replace(singleCharRepetitionRegex) { match ->
