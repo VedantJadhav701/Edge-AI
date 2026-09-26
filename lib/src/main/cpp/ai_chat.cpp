@@ -490,6 +490,10 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_processUserPrompt(
         jstring juser_prompt,
         jint n_predict
 ) {
+    // If previous assistant output was not saved to chat_msgs, commit it now
+    if (!assistant_ss.str().empty()) {
+        chat_add_and_format(ROLE_ASSISTANT, assistant_ss.str());
+    }
     // Reset short-term states
     reset_short_term_states();
 
@@ -591,6 +595,10 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_generateNextToken(
     // Stop if reaching the marked position
     if (current_position >= stop_generation_position) {
         LOGw("%s: STOP: hitting stop position: %d", __func__, stop_generation_position);
+        if (!assistant_ss.str().empty()) {
+            chat_add_and_format(ROLE_ASSISTANT, assistant_ss.str());
+            assistant_ss.str("");
+        }
         return nullptr;
     }
 
@@ -612,7 +620,10 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_generateNextToken(
     // Stop if next token is EOG
     if (llama_vocab_is_eog(llama_model_get_vocab(g_model), new_token_id)) {
         LOGd("id: %d,\tIS EOG!\nSTOP.", new_token_id);
-        chat_add_and_format(ROLE_ASSISTANT, assistant_ss.str());
+        if (!assistant_ss.str().empty()) {
+            chat_add_and_format(ROLE_ASSISTANT, assistant_ss.str());
+            assistant_ss.str("");
+        }
         return nullptr;
     }
 

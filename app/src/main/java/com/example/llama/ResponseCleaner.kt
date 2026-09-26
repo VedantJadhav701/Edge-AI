@@ -44,8 +44,119 @@ object ResponseCleaner {
             .trimStart()
     }
 
+    fun cleanLatexFormulas(raw: String): String {
+        var text = raw
+        if (text.isBlank()) return text
+
+        // Replace \frac{a}{b} -> (a / b)
+        text = text.replace(Regex("""\\frac\{([^}]+)\}\{([^}]+)\}""")) { match ->
+            "(${match.groupValues[1]} / ${match.groupValues[2]})"
+        }
+
+        // Replace \sqrt{a} -> √(a)
+        text = text.replace(Regex("""\\sqrt\{([^}]+)\}""")) { match ->
+            "√(${match.groupValues[1]})"
+        }
+
+        // Replace \text{...}, \mathrm{...}, \mathbf{...}
+        text = text.replace(Regex("""\\(text|mathrm|mathbf|mathsf)\{([^}]+)\}""")) { match ->
+            match.groupValues[2]
+        }
+
+        // Replace common LaTeX symbols
+        text = text
+            .replace("\\times", "×")
+            .replace("\\cdot", "·")
+            .replace("\\ast", "*")
+            .replace("\\approx", "≈")
+            .replace("\\leq", "≤")
+            .replace("\\ge", "≥")
+            .replace("\\geq", "≥")
+            .replace("\\le", "≤")
+            .replace("\\neq", "≠")
+            .replace("\\pm", "±")
+            .replace("\\mp", "∓")
+            .replace("\\infty", "∞")
+            .replace("\\partial", "∂")
+            .replace("\\nabla", "∇")
+            .replace("\\sum", "∑")
+            .replace("\\prod", "∏")
+            .replace("\\int", "∫")
+            // Greek letters
+            .replace("\\alpha", "α")
+            .replace("\\beta", "β")
+            .replace("\\gamma", "γ")
+            .replace("\\delta", "δ")
+            .replace("\\epsilon", "ε")
+            .replace("\\zeta", "ζ")
+            .replace("\\eta", "η")
+            .replace("\\theta", "θ")
+            .replace("\\lambda", "λ")
+            .replace("\\mu", "μ")
+            .replace("\\nu", "ν")
+            .replace("\\pi", "π")
+            .replace("\\rho", "ρ")
+            .replace("\\sigma", "σ")
+            .replace("\\tau", "τ")
+            .replace("\\phi", "φ")
+            .replace("\\chi", "χ")
+            .replace("\\psi", "ψ")
+            .replace("\\omega", "ω")
+            .replace("\\Delta", "Δ")
+            .replace("\\Gamma", "Γ")
+            .replace("\\Theta", "Θ")
+            .replace("\\Lambda", "Λ")
+            .replace("\\Sigma", "Σ")
+            .replace("\\Phi", "Φ")
+            .replace("\\Omega", "Ω")
+
+        // Superscript mappings
+        text = text
+            .replace("^0", "⁰")
+            .replace("^1", "¹")
+            .replace("^2", "²")
+            .replace("^3", "³")
+            .replace("^4", "⁴")
+            .replace("^5", "⁵")
+            .replace("^6", "⁶")
+            .replace("^7", "⁷")
+            .replace("^8", "⁸")
+            .replace("^9", "⁹")
+            .replace("^+", "⁺")
+            .replace("^-", "⁻")
+            .replace("^n", "ⁿ")
+            .replace("^x", "ˣ")
+            .replace("^t", "ᵗ")
+
+        // Subscript mappings
+        text = text
+            .replace("_0", "₀")
+            .replace("_1", "₁")
+            .replace("_2", "₂")
+            .replace("_3", "₃")
+            .replace("_4", "₄")
+            .replace("_5", "₅")
+            .replace("_6", "₆")
+            .replace("_7", "₇")
+            .replace("_8", "₈")
+            .replace("_9", "₉")
+            .replace("_x", "ₓ")
+            .replace("_y", "ᵧ")
+            .replace("_t", "ₜ")
+
+        // Remove LaTeX delimiters $$ ... $$, \[ ... \], \( ... \)
+        text = text
+            .replace("$$", "")
+            .replace("\\[", "")
+            .replace("\\]", "")
+            .replace("\\(", "")
+            .replace("\\)", "")
+
+        return text
+    }
+
     fun formatMarkdown(text: String): Spanned {
-        val cleaned = cleanRawTokenStream(text)
+        val cleaned = cleanLatexFormulas(cleanRawTokenStream(text))
 
         if (cleaned.isBlank()) {
             return SpannableString("")

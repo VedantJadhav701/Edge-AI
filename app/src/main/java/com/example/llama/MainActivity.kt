@@ -365,6 +365,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun clearChat() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                if (isModelReady) {
+                    engine.cleanUp()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error cleaning up engine on clear chat", e)
+            }
+        }
         messages.clear()
         messageAdapter.notifyDataSetChanged()
         Toast.makeText(this, "Chat cleared", Toast.LENGTH_SHORT).show()
@@ -400,9 +409,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun ensureModelsDirectory() =
-        File(filesDir, DIRECTORY_MODELS).also {
-            if (it.exists() && !it.isDirectory) { it.delete() }
-            if (!it.exists()) { it.mkdir() }
+        File(filesDir, DIRECTORY_MODELS).also { dir ->
+            if (dir.exists() && !dir.isDirectory) { dir.delete() }
+            if (!dir.exists()) { dir.mkdir() }
+            val files = dir.listFiles()?.filter { it.name.endsWith(".gguf") } ?: emptyList()
+            val namedFiles = files.filter { !it.name.startsWith("qwen3-") && !it.name.startsWith("model-") }
+            if (namedFiles.isNotEmpty()) {
+                files.filter { it.name.startsWith("qwen3-") || it.name.startsWith("model-") }.forEach { orphan ->
+                    try { orphan.delete() } catch (e: Exception) { Log.e(TAG, "Failed to delete orphan file", e) }
+                }
+            }
         }
 
     override fun onStop() {
