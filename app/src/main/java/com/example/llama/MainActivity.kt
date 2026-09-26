@@ -379,6 +379,7 @@ class MainActivity : AppCompatActivity() {
 
         userInputEt.text = null
         userInputEt.isEnabled = false
+        userActionFab.isEnabled = false
         isGenerating = true
 
         userActionFab.setImageResource(R.drawable.ic_stop)
@@ -403,7 +404,7 @@ class MainActivity : AppCompatActivity() {
 
         generationJob = lifecycleScope.launch(Dispatchers.Default) {
             try {
-                engine.sendUserPrompt(userMsg, 128)
+                engine.sendUserPrompt(userMsg, 96)
                     .collect { token ->
                         tokenCount++
 
@@ -430,6 +431,7 @@ class MainActivity : AppCompatActivity() {
                 withContext(Dispatchers.Main) {
                     isGenerating = false
                     userInputEt.isEnabled = true
+                    userActionFab.isEnabled = true
                     userActionFab.setImageResource(R.drawable.outline_send_24)
 
                     val finalResponseText = response.toString().trim()
@@ -457,7 +459,7 @@ class MainActivity : AppCompatActivity() {
 
                     val ttft = firstTokenTime?.let { it - startTime } ?: 0
 
-                    ggufTv.text = "⚡ %.1f tok/s | TTFT: %dms | Ctx: 4096 | Threads: 1"
+                    ggufTv.text = "⚡ %.1f tok/s | TTFT: %dms | Ctx: 4096 | Threads: 2"
                         .format(tokPerSec, ttft)
                 }
             }

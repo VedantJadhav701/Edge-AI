@@ -4,6 +4,9 @@
 #include <cmath>
 #include <string>
 #include <unistd.h>
+#include <atomic>
+#include <thread>
+#include <algorithm>
 #include <sampling.h>
 
 #include "logging.h"
@@ -31,13 +34,14 @@ constexpr int   N_THREADS_HEADROOM      = 2;
 constexpr int   DEFAULT_CONTEXT_SIZE    = 4096;
 constexpr int   OVERFLOW_HEADROOM       = 4;
 constexpr int   BATCH_SIZE              = 512;
-constexpr float DEFAULT_SAMPLER_TEMP    = 0.2f;
+constexpr float DEFAULT_SAMPLER_TEMP    = 0.15f;
 
 static llama_model                      * g_model;
 static llama_context                    * g_context;
 static llama_batch                        g_batch;
 static common_chat_templates_ptr          g_chat_templates;
 static common_sampler                   * g_sampler;
+static std::atomic<bool>                  g_busy{false};
 
 extern "C"
 JNIEXPORT void JNICALL
@@ -79,9 +83,10 @@ static llama_context *init_context(llama_model *model, const int n_ctx = DEFAULT
         return nullptr;
     }
 
-    // Single-thread setup for high-quality, stable 1-bit quantization inference (~1.8 tok/s)
-    const int n_threads = 1;
-    LOGi("%s: Using %d thread for stable 1-bit inference", __func__, n_threads);
+    const int n_threads = std::clamp(
+        (int)std::thread::hardware_concurrency() - N_THREADS_HEADROOM,
+        N_THREADS_MIN, 2);
+    LOGi("%s: Using %d threads", __func__, n_threads);
 
     // Context parameters setup
     llama_context_params ctx_params = llama_context_default_params();
@@ -105,14 +110,12 @@ static llama_context *init_context(llama_model *model, const int n_ctx = DEFAULT
 static common_sampler *new_sampler(float temp) {
     common_params_sampling sparams;
 
-    sparams.temp = 0.2f;
-    sparams.top_p = 0.9f;
-    sparams.top_k = 20;
-    sparams.min_p = 0.0f;
-
-    // Repetition protection
-    sparams.penalty_last_n = 64;
-    sparams.penalty_repeat = 1.1f;
+    sparams.temp = 0.15f;
+    sparams.top_p = 0.85f;
+    sparams.top_k = 12;
+    sparams.min_p = 0.05f;      // drops noise tokens
+    sparams.penalty_last_n = 96;
+    sparams.penalty_repeat = 1.15f;
 
     return common_sampler_init(g_model, sparams);
 }
@@ -487,6 +490,11 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_processUserPrompt(
         jstring juser_prompt,
         jint n_predict
 ) {
+    if (g_busy.exchange(true)) {
+        LOGw("%s: Generation already in progress, rejecting", __func__);
+        return 3;
+    }
+
     // If previous assistant output was not saved to chat_msgs, commit it now
     if (!assistant_ss.str().empty()) {
         chat_add_and_format(ROLE_ASSISTANT, assistant_ss.str());
@@ -596,6 +604,7 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_generateNextToken(
             chat_add_and_format(ROLE_ASSISTANT, assistant_ss.str());
             assistant_ss.str("");
         }
+        g_busy = false;
         return nullptr;
     }
 
@@ -608,6 +617,7 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_generateNextToken(
     common_batch_add(g_batch, new_token_id, current_position, {0}, true);
     if (llama_decode(g_context, g_batch) != 0) {
         LOGe("%s: llama_decode() failed for generated token", __func__);
+        g_busy = false;
         return nullptr;
     }
 
@@ -621,6 +631,7 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_generateNextToken(
             chat_add_and_format(ROLE_ASSISTANT, assistant_ss.str());
             assistant_ss.str("");
         }
+        g_busy = false;
         return nullptr;
     }
 
@@ -650,6 +661,7 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_unload(JNIEnv * /*unused*/, job
     // Reset long-term & short-term states
     reset_long_term_states();
     reset_short_term_states();
+    g_busy = false;
 
     // Free up resources
     common_sampler_free(g_sampler);
