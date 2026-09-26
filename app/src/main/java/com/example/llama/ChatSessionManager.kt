@@ -13,7 +13,7 @@ import java.util.UUID
 data class ChatSession(
     val id: String = UUID.randomUUID().toString(),
     var title: String = "New Chat",
-    val timestamp: Long = System.currentTimeMillis(),
+    var timestamp: Long = System.currentTimeMillis(),
     val messages: MutableList<Message> = mutableListOf()
 ) {
     fun getFormattedDate(): String {
@@ -51,6 +51,8 @@ class ChatSessionManager(private val context: Context) {
     fun saveSession(session: ChatSession) {
         if (session.messages.isEmpty()) return
 
+        session.timestamp = System.currentTimeMillis()
+
         // Auto-generate title if default
         if (session.title == "New Chat" || session.title.isBlank()) {
             val firstUserMsg = session.messages.firstOrNull { it.isUser }?.content
@@ -79,12 +81,23 @@ class ChatSessionManager(private val context: Context) {
             val file = File(sessionsDir, "session_${session.id}.json")
             file.writeText(json.toString(2))
             Log.i(TAG, "Saved chat session to JSON: ${file.absolutePath}")
+
+            pruneOldSessions()
         } catch (e: Exception) {
             Log.e(TAG, "Failed to save session ${session.id}", e)
         }
     }
 
     fun loadAllSessions(): List<ChatSession> {
+        val list = loadAllSessionsUnpruned()
+        if (list.size > MAX_SESSIONS) {
+            pruneOldSessions()
+            return list.take(MAX_SESSIONS)
+        }
+        return list
+    }
+
+    private fun loadAllSessionsUnpruned(): List<ChatSession> {
         val list = mutableListOf<ChatSession>()
         val files = sessionsDir.listFiles()?.filter { it.name.startsWith("session_") && it.name.endsWith(".json") } ?: emptyList()
 
@@ -120,14 +133,28 @@ class ChatSessionManager(private val context: Context) {
         return list.sortedByDescending { it.timestamp }
     }
 
+    private fun pruneOldSessions() {
+        try {
+            val sessions = loadAllSessionsUnpruned()
+            if (sessions.size > MAX_SESSIONS) {
+                val sessionsToDelete = sessions.drop(MAX_SESSIONS)
+                sessionsToDelete.forEach { session ->
+                    deleteSession(session.id)
+                    Log.i(TAG, "Auto-deleted old chat session beyond limit of $MAX_SESSIONS: ${session.id}")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error pruning old chat sessions", e)
+        }
+    }
+
     fun deleteSession(sessionId: String): Boolean {
         val file = File(sessionsDir, "session_$sessionId.json")
         return if (file.exists()) file.delete() else false
     }
 
-    private fun String?.isNullBlink(): Boolean = this == null || this.trim().isEmpty()
-
     companion object {
         private const val TAG = "ChatSessionManager"
+        private const val MAX_SESSIONS = 10
     }
 }

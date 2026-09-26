@@ -273,74 +273,121 @@
             android:textColor="@color/text_secondary"
             android:textSize="11sp" />
 
-        <!-- Floating Pill Input Composer Bar -->
+        <!-- Floating Input Composer Container -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginHorizontal="16dp"
+            android:layout_marginHorizontal="12dp"
             android:layout_marginTop="2dp"
             android:layout_marginBottom="12dp"
             android:background="@drawable/bg_composer"
             android:elevation="4dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingHorizontal="10dp"
-            android:paddingVertical="4dp">
+            android:orientation="vertical"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="10dp">
 
-            <!-- [+] Attach Button -->
-            <ImageButton
-                android:id="@+id/btn_attach"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="Attach"
-                android:src="@drawable/ic_plus"
-                app:tint="@color/text_primary" />
-
-            <!-- Active Model Chip -->
-            <TextView
-                android:id="@+id/composer_model_chip"
-                android:layout_width="wrap_content"
+            <!-- Top Area: Status / Upgrade Banner -->
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="4dp"
-                android:background="@drawable/bg_model_chip"
-                android:clickable="true"
-                android:focusable="true"
-                android:foreground="?attr/selectableItemBackground"
-                android:paddingHorizontal="8dp"
-                android:paddingVertical="4dp"
-                android:text="⚡ Bonsai-Q1_0 ▾"
-                android:textColor="@color/text_secondary"
-                android:textSize="11sp"
-                android:textStyle="bold" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingBottom="4dp">
 
-            <!-- Input EditText -->
+                <TextView
+                    android:id="@+id/banner_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_offline_badge"
+                    android:paddingHorizontal="8dp"
+                    android:paddingVertical="2dp"
+                    android:text="Edge AI Pro"
+                    android:textColor="@color/offline_badge_text"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:layout_weight="1" />
+
+                <TextView
+                    android:id="@+id/banner_action"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="100% Offline"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- Input Area: Multiline EditText -->
             <EditText
                 android:id="@+id/user_input"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
-                android:layout_weight="1"
+                android:minLines="2"
+                android:maxLines="5"
                 android:background="@null"
                 android:enabled="false"
                 android:hint="Ask Edge AI anything..."
-                android:maxLines="4"
-                android:paddingHorizontal="6dp"
-                android:paddingVertical="10dp"
+                android:gravity="top|start"
+                android:paddingVertical="8dp"
                 android:textColor="@color/text_primary"
                 android:textColorHint="@color/text_secondary"
                 android:textSize="15sp" />
 
-            <!-- Send / Stop FAB -->
-            <com.google.android.material.floatingactionbutton.FloatingActionButton
-                android:id="@+id/fab"
-                style="@style/Widget.Material3.FloatingActionButton.Primary"
-                android:layout_width="wrap_content"
+            <!-- Bottom Row: Controls & Model Selector -->
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_margin="2dp"
-                android:enabled="true"
-                android:src="@drawable/outline_send_24"
-                app:fabSize="mini" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingTop="4dp">
+
+                <!-- [+] Attach Button -->
+                <ImageButton
+                    android:id="@+id/btn_attach"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Attach"
+                    android:src="@drawable/ic_plus"
+                    app:tint="@color/text_primary" />
+
+                <!-- Active Model Selector Chip -->
+                <TextView
+                    android:id="@+id/composer_model_chip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/bg_model_chip"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackground"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="6dp"
+                    android:text="⚡ Bonsai-Q1_0 ▾"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <!-- Spacer -->
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:layout_weight="1" />
+
+                <!-- Send / Stop FAB -->
+                <com.google.android.material.floatingactionbutton.FloatingActionButton
+                    android:id="@+id/fab"
+                    style="@style/Widget.Material3.FloatingActionButton.Primary"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:enabled="true"
+                    android:src="@drawable/outline_send_24"
+                    app:fabSize="mini" />
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
 

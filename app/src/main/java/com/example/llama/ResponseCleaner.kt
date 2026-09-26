@@ -23,11 +23,6 @@ object ResponseCleaner {
         // Remove ANSI escape sequences
         text = text.replace(ansiRegex, "")
 
-        // Remove thinking tag markers while preserving reasoning content for visibility
-        text = text
-            .replace("<think>", "", ignoreCase = true)
-            .replace("</think>", "", ignoreCase = true)
-
         // Filter out extreme runaway character repetition loops
         text = text.replace(singleCharRepetitionRegex) { match ->
             match.groupValues[1].repeat(3)
@@ -151,25 +146,40 @@ object ResponseCleaner {
     }
 
     fun formatMarkdown(text: String): Spanned {
-        val cleaned = cleanLatexFormulas(cleanRawTokenStream(text))
+        var cleaned = cleanLatexFormulas(cleanRawTokenStream(text))
 
         if (cleaned.isBlank()) {
             return SpannableString("")
         }
 
-        val html = cleaned
-            .replace(
-                Regex("\\*\\*(.*?)\\*\\*"),
-                "<b>$1</b>"
-            )
-            .replace(
-                Regex("`([^`]+)`"),
-                "<tt>$1</tt>"
-            )
-            .replace(
-                Regex("^[-*]\\s+(.*)$", RegexOption.MULTILINE),
-                "• $1<br/>"
-            )
+        if (cleaned.contains("<think>", ignoreCase = true)) {
+            cleaned = cleaned.replace(Regex("(?s)<think>(.*?)</think>")) { match ->
+                val inner = match.groupValues[1].trim()
+                "<i><b>$inner</b></i><br/><br/>"
+            }
+            cleaned = cleaned.replace(Regex("(?s)<think>(.*)"), "<i><b>$1</b></i>")
+        }
+
+        var html = cleaned
+            // Convert markdown headers: # Header, ## Header, ### Header, #### Header
+            .replace(Regex("(?m)^#{1,6}\\s*(.*)$")) { match ->
+                val title = match.groupValues[1].trim()
+                if (title.isNotEmpty()) "<b>$title</b>" else ""
+            }
+            // Convert horizontal rules: --- or *** or ___
+            .replace(Regex("(?m)^[\\s]*[-*_]{3,}[\\s]*$"), "")
+            // Bold **text** or __text__
+            .replace(Regex("\\*\\*(.*?)\\*\\*"), "<b>$1</b>")
+            .replace(Regex("__(.*?)__"), "<b>$1</b>")
+            // Italic *text* or _text_
+            .replace(Regex("(?<!\\*)\\*([^*]+)\\*(?!\\*)"), "<i>$1</i>")
+            // Code backticks `code`
+            .replace(Regex("`([^`]+)`"), "<tt>$1</tt>")
+            // Bullet lists: - item or * item
+            .replace(Regex("(?m)^[-*]\\s+(.*)$"), "• $1")
+            // Strip leftover stray # symbols
+            .replace(Regex("#+"), "")
+            // Line breaks to <br/>
             .replace("\n", "<br/>")
 
         return Html.fromHtml(
