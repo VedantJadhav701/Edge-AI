@@ -3,8 +3,10 @@ package com.example.llama
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
+import android.view.View
 import android.widget.EditText
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.addCallback
@@ -49,14 +51,25 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnInfo: ImageButton
     private lateinit var btnClear: ImageButton
 
+    private lateinit var emptyStateView: View
+    private lateinit var chip1: TextView
+    private lateinit var chip2: TextView
+    private lateinit var chip3: TextView
+    private lateinit var telemetryPanel: View
+    private lateinit var headerTitleContainer: View
+    private lateinit var btnExpandTelemetry: ImageView
+
     private lateinit var engine: InferenceEngine
     private var generationJob: Job? = null
 
     private var isModelReady = false
     private var isGenerating = false
-    private var activeModelName = "Bonsai-8B-Q1_0"
+    private var activeModelName = "Bonsai-Q1_0"
     private val messages = mutableListOf<Message>()
-    private val messageAdapter = MessageAdapter(messages)
+    private val messageAdapter = MessageAdapter(
+        messages = messages,
+        onRegenerateClicked = { regenerateLastTurn() }
+    )
 
     private lateinit var chatSessionManager: ChatSessionManager
     private lateinit var chatSessionAdapter: ChatSessionAdapter
@@ -91,11 +104,45 @@ class MainActivity : AppCompatActivity() {
         btnInfo = findViewById(R.id.btn_info)
         btnClear = findViewById(R.id.btn_clear)
 
+        emptyStateView = findViewById(R.id.empty_state_view)
+        chip1 = findViewById(R.id.chip_1)
+        chip2 = findViewById(R.id.chip_2)
+        chip3 = findViewById(R.id.chip_3)
+        telemetryPanel = findViewById(R.id.telemetry_panel)
+        headerTitleContainer = findViewById(R.id.header_title_container)
+        btnExpandTelemetry = findViewById(R.id.btn_expand_telemetry)
+
+        updateEmptyStateVisibility()
+
         chatSessionManager = ChatSessionManager(applicationContext)
         setupHistorySidebar()
 
         btnMenu.setOnClickListener { drawerLayout.openDrawer(GravityCompat.START) }
         btnNewChat.setOnClickListener { startNewChatSession() }
+
+        val toggleTelemetry = {
+            if (telemetryPanel.visibility == View.VISIBLE) {
+                telemetryPanel.visibility = View.GONE
+                btnExpandTelemetry.animate().rotation(0f).setDuration(200).start()
+            } else {
+                telemetryPanel.visibility = View.VISIBLE
+                btnExpandTelemetry.animate().rotation(180f).setDuration(200).start()
+            }
+        }
+        headerTitleContainer.setOnClickListener { toggleTelemetry() }
+
+        chip1.setOnClickListener {
+            userInputEt.setText("Explain a complex topic in simple terms")
+            userInputEt.requestFocus()
+        }
+        chip2.setOnClickListener {
+            userInputEt.setText("Help me draft a clear project update email")
+            userInputEt.requestFocus()
+        }
+        chip3.setOnClickListener {
+            userInputEt.setText("Brainstorm 5 creative app features for on-device AI")
+            userInputEt.requestFocus()
+        }
 
         lifecycleScope.launch(Dispatchers.Default) {
             engine = AiChat.getInferenceEngine(applicationContext)
@@ -103,7 +150,6 @@ class MainActivity : AppCompatActivity() {
         }
 
         btnSwitchModel.setOnClickListener { showModelPicker() }
-        subtitleTv.setOnClickListener { showModelPicker() }
         btnInfo.setOnClickListener { showModelInfoDialog() }
         btnClear.setOnClickListener { clearChat() }
 
@@ -115,6 +161,16 @@ class MainActivity : AppCompatActivity() {
             } else {
                 showModelPicker()
             }
+        }
+    }
+
+    private fun updateEmptyStateVisibility() {
+        if (messages.isEmpty()) {
+            emptyStateView.visibility = View.VISIBLE
+            messagesRv.visibility = View.GONE
+        } else {
+            emptyStateView.visibility = View.GONE
+            messagesRv.visibility = View.VISIBLE
         }
     }
 
@@ -151,6 +207,7 @@ class MainActivity : AppCompatActivity() {
         currentSession = ChatSession()
         messages.clear()
         messageAdapter.notifyDataSetChanged()
+        updateEmptyStateVisibility()
 
         lifecycleScope.launch(Dispatchers.IO) {
             try {
@@ -175,6 +232,7 @@ class MainActivity : AppCompatActivity() {
         messages.clear()
         messages.addAll(session.messages)
         messageAdapter.notifyDataSetChanged()
+        updateEmptyStateVisibility()
 
         lifecycleScope.launch(Dispatchers.IO) {
             try {
@@ -409,6 +467,7 @@ class MainActivity : AppCompatActivity() {
         val userMessageObj = Message(UUID.randomUUID().toString(), userMsg, true)
         messages.add(userMessageObj)
         currentSession.messages.add(userMessageObj)
+        updateEmptyStateVisibility()
 
         val assistantIndex = messages.size
         val assistantMessageObj = Message(UUID.randomUUID().toString(), "", false)
@@ -417,6 +476,40 @@ class MainActivity : AppCompatActivity() {
         messageAdapter.notifyItemRangeInserted(assistantIndex - 1, 2)
         messagesRv.scrollToPosition(assistantIndex)
 
+        sendPromptToEngine(userMsg, assistantIndex)
+    }
+
+    private fun regenerateLastTurn() {
+        if (isGenerating || !isModelReady || messages.isEmpty()) return
+
+        val lastUserIndex = messages.indexOfLast { it.isUser }
+        if (lastUserIndex == -1) return
+
+        val userMsg = messages[lastUserIndex].content
+
+        while (messages.size > lastUserIndex + 1) {
+            messages.removeAt(messages.size - 1)
+        }
+        while (currentSession.messages.size > lastUserIndex + 1) {
+            currentSession.messages.removeAt(currentSession.messages.size - 1)
+        }
+
+        val assistantIndex = messages.size
+        val assistantMessageObj = Message(UUID.randomUUID().toString(), "", false)
+        messages.add(assistantMessageObj)
+
+        messageAdapter.notifyDataSetChanged()
+        messagesRv.scrollToPosition(assistantIndex)
+
+        userInputEt.isEnabled = false
+        userActionFab.isEnabled = false
+        isGenerating = true
+        userActionFab.setImageResource(R.drawable.ic_stop)
+
+        sendPromptToEngine(userMsg, assistantIndex)
+    }
+
+    private fun sendPromptToEngine(userMsg: String, assistantIndex: Int) {
         val startTime = System.currentTimeMillis()
         var firstTokenTime: Long? = null
         var tokenCount = 0
@@ -448,6 +541,15 @@ class MainActivity : AppCompatActivity() {
                     }
             } catch (e: Exception) {
                 Log.e(TAG, "Error during generation stream", e)
+                withContext(Dispatchers.Main) {
+                    if (assistantIndex < messages.size) {
+                        val errorMsg = messages[assistantIndex].copy(
+                            content = "⚠️ Couldn't generate a response — please try again."
+                        )
+                        messages[assistantIndex] = errorMsg
+                        messageAdapter.notifyItemChanged(assistantIndex)
+                    }
+                }
             } finally {
                 withContext(Dispatchers.Main) {
                     isGenerating = false
@@ -457,7 +559,7 @@ class MainActivity : AppCompatActivity() {
 
                     val rawResponse = response.toString()
                     val displayResponse = if (rawResponse.trim().isEmpty()) {
-                        if (rawResponse.isNotEmpty()) rawResponse else "[No text generated]"
+                        if (rawResponse.isNotEmpty()) rawResponse else "⚠️ Couldn't generate a response — please try again."
                     } else {
                         rawResponse
                     }
@@ -510,6 +612,7 @@ class MainActivity : AppCompatActivity() {
         messages.clear()
         currentSession = ChatSession()
         messageAdapter.notifyDataSetChanged()
+        updateEmptyStateVisibility()
         Toast.makeText(this, "Chat cleared", Toast.LENGTH_SHORT).show()
     }
 

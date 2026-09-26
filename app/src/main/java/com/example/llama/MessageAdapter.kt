@@ -8,6 +8,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.recyclerview.widget.RecyclerView
 
 data class Message(
@@ -17,7 +18,8 @@ data class Message(
 )
 
 class MessageAdapter(
-    private val messages: List<Message>
+    private val messages: List<Message>,
+    private val onRegenerateClicked: (() -> Unit)? = null
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     companion object {
@@ -47,22 +49,41 @@ class MessageAdapter(
         if (holder is UserMessageViewHolder) {
             val textView = holder.itemView.findViewById<TextView>(R.id.msg_content)
             textView.text = message.content
-            setupCopyOnLongClick(textView, context, message.content)
+            setupUserLongClick(textView, context, message.content)
         } else if (holder is AssistantMessageViewHolder) {
             val textView = holder.itemView.findViewById<TextView>(R.id.msg_content)
             textView.text = ResponseCleaner.formatMarkdown(message.content)
-            setupCopyOnLongClick(textView, context, message.content)
+            setupAssistantLongClick(textView, context, message.content)
         }
     }
 
-    private fun setupCopyOnLongClick(view: View, context: Context, text: String) {
+    private fun setupUserLongClick(view: View, context: Context, text: String) {
         view.setOnLongClickListener {
-            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            val clip = ClipData.newPlainText("Copied Text", text)
-            clipboard.setPrimaryClip(clip)
-            Toast.makeText(context, "Copied to clipboard!", Toast.LENGTH_SHORT).show()
+            copyToClipboard(context, text)
             true
         }
+    }
+
+    private fun setupAssistantLongClick(view: View, context: Context, text: String) {
+        view.setOnLongClickListener {
+            val options = arrayOf("📋 Copy Text", "🔄 Regenerate Response")
+            AlertDialog.Builder(context)
+                .setItems(options) { _, which ->
+                    when (which) {
+                        0 -> copyToClipboard(context, text)
+                        1 -> onRegenerateClicked?.invoke()
+                    }
+                }
+                .show()
+            true
+        }
+    }
+
+    private fun copyToClipboard(context: Context, text: String) {
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val clip = ClipData.newPlainText("Message Text", text)
+        clipboard.setPrimaryClip(clip)
+        Toast.makeText(context, "Copied to clipboard!", Toast.LENGTH_SHORT).show()
     }
 
     override fun getItemCount(): Int = messages.size
