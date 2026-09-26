@@ -156,14 +156,19 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             Log.i(TAG, "Parsing GGUF metadata...")
             try {
+                val uriFileName = getFileNameFromUri(uri)
                 var metadataName: String? = null
                 contentResolver.openInputStream(uri)?.use { input ->
                     GgufMetadataReader.create().readStructuredMetadata(input)?.let { metadata ->
-                        metadataName = metadata.filename() + FILE_EXTENSION_GGUF
+                        val metaFile = metadata.filename()
+                        if (metadata.basic.name != null) {
+                            metadataName = metaFile + FILE_EXTENSION_GGUF
+                        }
                     }
                 }
 
-                val modelName = metadataName ?: ("model-" + System.currentTimeMillis() + FILE_EXTENSION_GGUF)
+                val rawFileName = uriFileName ?: metadataName ?: ("model-" + System.currentTimeMillis() + FILE_EXTENSION_GGUF)
+                val modelName = if (rawFileName.endsWith(FILE_EXTENSION_GGUF, ignoreCase = true)) rawFileName else "$rawFileName$FILE_EXTENSION_GGUF"
                 val cleanName = cleanModelDisplayName(modelName)
 
                 withContext(Dispatchers.Main) {
@@ -190,6 +195,32 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    private fun getFileNameFromUri(uri: Uri): String? {
+        var result: String? = null
+        if (uri.scheme == "content") {
+            try {
+                contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val index = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                        if (index != -1) {
+                            result = cursor.getString(index)
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to query Uri display name", e)
+            }
+        }
+        if (result == null) {
+            val path = uri.path
+            val cut = path?.lastIndexOf('/') ?: -1
+            if (cut != -1) {
+                result = path?.substring(cut + 1)
+            }
+        }
+        return result
     }
 
     private suspend fun loadModelFileDirectly(modelDisplayName: String, modelFile: File) {
@@ -317,7 +348,7 @@ class MainActivity : AppCompatActivity() {
 
                     val ttft = firstTokenTime?.let { it - startTime } ?: 0
 
-                    ggufTv.text = "⚡ %.1f tok/s | TTFT: %dms | Ctx: 4096 | Threads: 4"
+                    ggufTv.text = "⚡ %.1f tok/s | TTFT: %dms | Ctx: 2048 | Threads: 4"
                         .format(tokPerSec, ttft)
                 }
             }
@@ -348,7 +379,7 @@ class MainActivity : AppCompatActivity() {
                 "• Acceleration: ARM Neon + KleidiAI\n" +
                 "• Device: Moto G54 5G\n" +
                 "• Mode: 100% Offline\n" +
-                "• Context Window: 4096 tokens\n" +
+                "• Context Window: 2048 tokens\n" +
                 "• Thread Count: 4 CPU Threads"
             )
             .setPositiveButton("OK", null)
@@ -356,11 +387,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun cleanModelDisplayName(filename: String): String {
-        return filename
+        val clean = filename
             .replace(".gguf", "", ignoreCase = true)
             .replace("-Q4_K_M", "", ignoreCase = true)
             .replace("-Q4_0", "", ignoreCase = true)
             .replace("-Q8_0", "", ignoreCase = true)
+
+        if (clean.startsWith("qwen3-", ignoreCase = true) || clean.startsWith("model-", ignoreCase = true)) {
+            return "Bonsai-8B-Q1_0"
+        }
+        return clean
     }
 
     private fun ensureModelsDirectory() =
