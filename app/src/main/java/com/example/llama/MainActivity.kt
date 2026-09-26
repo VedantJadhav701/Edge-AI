@@ -25,6 +25,7 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -153,9 +154,9 @@ class MainActivity : AppCompatActivity() {
 
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                if (isModelReady) { engine.cleanUp() }
+                if (isModelReady) { engine.setSystemPrompt("You are a helpful assistant") }
             } catch (e: Exception) {
-                Log.e(TAG, "Error cleaning up engine for new chat", e)
+                Log.e(TAG, "Error resetting engine for new chat", e)
             }
         }
 
@@ -177,9 +178,9 @@ class MainActivity : AppCompatActivity() {
 
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                if (isModelReady) { engine.cleanUp() }
+                if (isModelReady) { engine.setSystemPrompt("You are a helpful assistant") }
             } catch (e: Exception) {
-                Log.e(TAG, "Error cleaning engine on chat load", e)
+                Log.e(TAG, "Error resetting engine on chat load", e)
             }
         }
 
@@ -327,12 +328,15 @@ class MainActivity : AppCompatActivity() {
 
     private suspend fun loadModelFileDirectly(modelDisplayName: String, modelFile: File) {
         withContext(Dispatchers.Main) {
+            isModelReady = false
             userActionFab.isEnabled = false
             userInputEt.hint = "Loading $modelDisplayName..."
             ggufTv.text = "⏳ Loading model: $modelDisplayName..."
         }
 
         try {
+            engine.state.first { it is InferenceEngine.State.Initialized }
+
             engine.loadModel(modelFile.path)
             try {
                 engine.setSystemPrompt("You are a helpful assistant")
