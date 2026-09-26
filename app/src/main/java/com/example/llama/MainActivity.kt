@@ -334,6 +334,11 @@ class MainActivity : AppCompatActivity() {
 
         try {
             engine.loadModel(modelFile.path)
+            try {
+                engine.setSystemPrompt("You are a helpful assistant")
+            } catch (e: Exception) {
+                Log.w(TAG, "Could not set system prompt", e)
+            }
             activeModelName = modelDisplayName
 
             withContext(Dispatchers.Main) {

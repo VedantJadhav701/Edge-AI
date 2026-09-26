@@ -110,12 +110,12 @@ static llama_context *init_context(llama_model *model, const int n_ctx = DEFAULT
 static common_sampler *new_sampler(float temp) {
     common_params_sampling sparams;
 
-    sparams.temp = 0.15f;
-    sparams.top_p = 0.85f;
-    sparams.top_k = 12;
-    sparams.min_p = 0.05f;      // drops noise tokens
-    sparams.penalty_last_n = 96;
-    sparams.penalty_repeat = 1.15f;
+    sparams.temp = 0.5f;
+    sparams.top_p = 0.9f;
+    sparams.top_k = 20;
+    sparams.min_p = 0.0f;
+    sparams.penalty_last_n = 64;
+    sparams.penalty_repeat = 1.0f;
 
     return common_sampler_init(g_model, sparams);
 }
