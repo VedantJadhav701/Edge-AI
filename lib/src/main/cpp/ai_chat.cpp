@@ -83,10 +83,9 @@ static llama_context *init_context(llama_model *model, const int n_ctx = DEFAULT
         return nullptr;
     }
 
-    const int n_threads = std::clamp(
-        (int)std::thread::hardware_concurrency() - N_THREADS_HEADROOM,
-        N_THREADS_MIN, 2);
-    LOGi("%s: Using %d threads", __func__, n_threads);
+    // Single-thread setup for stable, high-quality 1-bit quantization inference (~1.8 tok/s)
+    const int n_threads = 1;
+    LOGi("%s: Using %d thread for stable 1-bit inference", __func__, n_threads);
 
     // Context parameters setup
     llama_context_params ctx_params = llama_context_default_params();

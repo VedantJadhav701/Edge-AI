@@ -409,7 +409,7 @@ class MainActivity : AppCompatActivity() {
 
         generationJob = lifecycleScope.launch(Dispatchers.Default) {
             try {
-                engine.sendUserPrompt(userMsg, 96)
+                engine.sendUserPrompt(userMsg, 256)
                     .collect { token ->
                         tokenCount++
 
@@ -464,7 +464,7 @@ class MainActivity : AppCompatActivity() {
 
                     val ttft = firstTokenTime?.let { it - startTime } ?: 0
 
-                    ggufTv.text = "⚡ %.1f tok/s | TTFT: %dms | Ctx: 4096 | Threads: 2"
+                    ggufTv.text = "⚡ %.1f tok/s | TTFT: %dms | Ctx: 4096 | Threads: 1"
                         .format(tokPerSec, ttft)
                 }
             }
