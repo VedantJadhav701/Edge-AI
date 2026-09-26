@@ -457,7 +457,7 @@ class MainActivity : AppCompatActivity() {
 
                     val ttft = firstTokenTime?.let { it - startTime } ?: 0
 
-                    ggufTv.text = "⚡ %.1f tok/s | TTFT: %dms | Ctx: 2048 | Threads: 4"
+                    ggufTv.text = "⚡ %.1f tok/s | TTFT: %dms | Ctx: 4096 | Threads: 4"
                         .format(tokPerSec, ttft)
                 }
             }
@@ -498,7 +498,7 @@ class MainActivity : AppCompatActivity() {
                 "• Acceleration: ARM Neon + KleidiAI\n" +
                 "• Device: Moto G54 5G\n" +
                 "• Mode: 100% Offline\n" +
-                "• Context Window: 2048 tokens\n" +
+                "• Context Window: 4096 tokens\n" +
                 "• Thread Count: 4 CPU Threads"
             )
             .setPositiveButton("OK", null)
