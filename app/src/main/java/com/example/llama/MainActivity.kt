@@ -12,6 +12,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.GravityCompat
+import androidx.drawerlayout.widget.DrawerLayout
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -19,6 +21,7 @@ import com.arm.aichat.AiChat
 import com.arm.aichat.InferenceEngine
 import com.arm.aichat.gguf.GgufMetadata
 import com.arm.aichat.gguf.GgufMetadataReader
+import com.google.android.material.button.MaterialButton
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -30,6 +33,11 @@ import java.io.InputStream
 import java.util.UUID
 
 class MainActivity : AppCompatActivity() {
+
+    private lateinit var drawerLayout: DrawerLayout
+    private lateinit var btnMenu: ImageButton
+    private lateinit var btnNewChat: MaterialButton
+    private lateinit var historyRv: RecyclerView
 
     private lateinit var ggufTv: TextView
     private lateinit var subtitleTv: TextView
@@ -45,15 +53,31 @@ class MainActivity : AppCompatActivity() {
 
     private var isModelReady = false
     private var isGenerating = false
-    private var activeModelName = "SmolLM2-360M-Instruct"
+    private var activeModelName = "Bonsai-8B-Q1_0"
     private val messages = mutableListOf<Message>()
     private val messageAdapter = MessageAdapter(messages)
+
+    private lateinit var chatSessionManager: ChatSessionManager
+    private lateinit var chatSessionAdapter: ChatSessionAdapter
+    private val savedSessions = mutableListOf<ChatSession>()
+    private var currentSession = ChatSession()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_main)
-        onBackPressedDispatcher.addCallback { Log.w(TAG, "Ignore back press for simplicity") }
+        onBackPressedDispatcher.addCallback {
+            if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+                drawerLayout.closeDrawer(GravityCompat.START)
+            } else {
+                Log.w(TAG, "Ignore back press for simplicity")
+            }
+        }
+
+        drawerLayout = findViewById(R.id.drawer_layout)
+        btnMenu = findViewById(R.id.btn_menu)
+        btnNewChat = findViewById(R.id.btn_new_chat)
+        historyRv = findViewById(R.id.history_rv)
 
         ggufTv = findViewById(R.id.gguf)
         subtitleTv = findViewById(R.id.subtitle_tv)
@@ -65,6 +89,12 @@ class MainActivity : AppCompatActivity() {
         btnSwitchModel = findViewById(R.id.btn_switch_model)
         btnInfo = findViewById(R.id.btn_info)
         btnClear = findViewById(R.id.btn_clear)
+
+        chatSessionManager = ChatSessionManager(applicationContext)
+        setupHistorySidebar()
+
+        btnMenu.setOnClickListener { drawerLayout.openDrawer(GravityCompat.START) }
+        btnNewChat.setOnClickListener { startNewChatSession() }
 
         lifecycleScope.launch(Dispatchers.Default) {
             engine = AiChat.getInferenceEngine(applicationContext)
@@ -87,12 +117,84 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupHistorySidebar() {
+        historyRv.layoutManager = LinearLayoutManager(this)
+        savedSessions.clear()
+        savedSessions.addAll(chatSessionManager.loadAllSessions())
+
+        chatSessionAdapter = ChatSessionAdapter(
+            sessions = savedSessions,
+            onSessionClick = { session -> loadChatSession(session) },
+            onDeleteClick = { session, position ->
+                chatSessionManager.deleteSession(session.id)
+                chatSessionAdapter.removeAt(position)
+                if (currentSession.id == session.id) {
+                    startNewChatSession()
+                }
+                Toast.makeText(this, "Deleted chat session", Toast.LENGTH_SHORT).show()
+            }
+        )
+        historyRv.adapter = chatSessionAdapter
+    }
+
+    private fun refreshHistorySidebar() {
+        savedSessions.clear()
+        savedSessions.addAll(chatSessionManager.loadAllSessions())
+        chatSessionAdapter.notifyDataSetChanged()
+    }
+
+    private fun startNewChatSession() {
+        if (currentSession.messages.isNotEmpty()) {
+            chatSessionManager.saveSession(currentSession)
+        }
+        currentSession = ChatSession()
+        messages.clear()
+        messageAdapter.notifyDataSetChanged()
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                if (isModelReady) { engine.cleanUp() }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error cleaning up engine for new chat", e)
+            }
+        }
+
+        refreshHistorySidebar()
+        if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+            drawerLayout.closeDrawer(GravityCompat.START)
+        }
+        Toast.makeText(this, "Started new chat", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun loadChatSession(session: ChatSession) {
+        if (currentSession.messages.isNotEmpty() && currentSession.id != session.id) {
+            chatSessionManager.saveSession(currentSession)
+        }
+        currentSession = session
+        messages.clear()
+        messages.addAll(session.messages)
+        messageAdapter.notifyDataSetChanged()
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                if (isModelReady) { engine.cleanUp() }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error cleaning engine on chat load", e)
+            }
+        }
+
+        if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+            drawerLayout.closeDrawer(GravityCompat.START)
+        }
+        Toast.makeText(this, "Loaded chat: ${session.title}", Toast.LENGTH_SHORT).show()
+    }
+
     private suspend fun checkExistingInternalModel() {
         val appModelsDir = ensureModelsDirectory()
         val internalModels = appModelsDir.listFiles()?.filter { it.name.endsWith(".gguf") } ?: emptyList()
 
         if (internalModels.isNotEmpty()) {
-            val defaultModel = internalModels.firstOrNull { it.name.contains("SmolLM2", ignoreCase = true) }
+            val defaultModel = internalModels.firstOrNull { it.name.contains("Bonsai", ignoreCase = true) }
                 ?: internalModels.first()
             val cleanName = cleanModelDisplayName(defaultModel.name)
             loadModelFileDirectly(cleanName, defaultModel)
@@ -282,23 +384,13 @@ class MainActivity : AppCompatActivity() {
         userActionFab.setImageResource(R.drawable.ic_stop)
         ggufTv.text = "⏳ Generating response..."
 
-        messages.add(
-            Message(
-                UUID.randomUUID().toString(),
-                userMsg,
-                true
-            )
-        )
+        val userMessageObj = Message(UUID.randomUUID().toString(), userMsg, true)
+        messages.add(userMessageObj)
+        currentSession.messages.add(userMessageObj)
 
         val assistantIndex = messages.size
-
-        messages.add(
-            Message(
-                UUID.randomUUID().toString(),
-                "",
-                false
-            )
-        )
+        val assistantMessageObj = Message(UUID.randomUUID().toString(), "", false)
+        messages.add(assistantMessageObj)
 
         messageAdapter.notifyItemRangeInserted(assistantIndex - 1, 2)
         messagesRv.scrollToPosition(assistantIndex)
@@ -311,7 +403,7 @@ class MainActivity : AppCompatActivity() {
 
         generationJob = lifecycleScope.launch(Dispatchers.Default) {
             try {
-                engine.sendUserPrompt(userMsg, 512)
+                engine.sendUserPrompt(userMsg, 256)
                     .collect { token ->
                         tokenCount++
 
@@ -332,11 +424,28 @@ class MainActivity : AppCompatActivity() {
                             }
                         }
                     }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error during generation stream", e)
             } finally {
                 withContext(Dispatchers.Main) {
                     isGenerating = false
                     userInputEt.isEnabled = true
                     userActionFab.setImageResource(R.drawable.outline_send_24)
+
+                    val finalResponseText = response.toString().trim()
+                    if (finalResponseText.isEmpty()) {
+                        if (assistantIndex < messages.size) {
+                            messages.removeAt(assistantIndex)
+                            messageAdapter.notifyItemRemoved(assistantIndex)
+                        }
+                    } else {
+                        if (assistantIndex < messages.size) {
+                            val finalMsg = messages[assistantIndex]
+                            currentSession.messages.add(finalMsg)
+                            chatSessionManager.saveSession(currentSession)
+                            refreshHistorySidebar()
+                        }
+                    }
 
                     val first = firstTokenTime ?: startTime
                     val generationSeconds = (System.currentTimeMillis() - first) / 1000.0
@@ -375,6 +484,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
         messages.clear()
+        currentSession = ChatSession()
         messageAdapter.notifyDataSetChanged()
         Toast.makeText(this, "Chat cleared", Toast.LENGTH_SHORT).show()
     }

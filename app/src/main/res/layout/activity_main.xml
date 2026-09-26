@@ -1,158 +1,255 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/main"
+    android:id="@+id/drawer_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F8FAFC"
-    android:fitsSystemWindows="true"
-    android:orientation="vertical">
+    android:fitsSystemWindows="true">
 
-    <!-- Header Bar -->
+    <!-- Main Content Area -->
     <LinearLayout
+        android:id="@+id/main_content"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="#FFFFFF"
-        android:elevation="2dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingHorizontal="16dp"
-        android:paddingVertical="12dp">
+        android:layout_height="match_parent"
+        android:background="#F8FAFC"
+        android:orientation="vertical">
 
+        <!-- Header Bar -->
         <LinearLayout
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
+            android:background="#FFFFFF"
+            android:elevation="2dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="10dp">
+
+            <ImageButton
+                android:id="@+id/btn_menu"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Open Navigation Drawer"
+                android:src="@drawable/ic_menu" />
 
             <LinearLayout
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
 
-                <TextView
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Edge AI"
-                    android:textColor="#0F172A"
-                    android:textSize="18sp"
-                    android:textStyle="bold" />
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Edge AI"
+                        android:textColor="#0F172A"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/offline_badge"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:background="@drawable/bg_offline_badge"
+                        android:paddingHorizontal="8dp"
+                        android:paddingVertical="2dp"
+                        android:text="OFFLINE"
+                        android:textColor="#166534"
+                        android:textSize="10sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
 
                 <TextView
-                    android:id="@+id/offline_badge"
+                    android:id="@+id/subtitle_tv"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:background="@drawable/bg_offline_badge"
-                    android:paddingHorizontal="8dp"
-                    android:paddingVertical="2dp"
-                    android:text="OFFLINE"
-                    android:textColor="#166534"
-                    android:textSize="10sp"
-                    android:textStyle="bold" />
+                    android:text="Bonsai-8B-Q1_0 • KleidiAI ARM Neon"
+                    android:textColor="#64748B"
+                    android:textSize="12sp" />
             </LinearLayout>
 
-            <TextView
-                android:id="@+id/subtitle_tv"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Qwen3-0.6B • KleidiAI ARM Neon"
-                android:textColor="#64748B"
-                android:textSize="12sp" />
+            <ImageButton
+                android:id="@+id/btn_switch_model"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Switch Model"
+                android:src="@drawable/ic_model" />
+
+            <ImageButton
+                android:id="@+id/btn_info"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="2dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Model Info"
+                android:src="@drawable/ic_info" />
+
+            <ImageButton
+                android:id="@+id/btn_clear"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="2dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Clear Chat"
+                android:src="@drawable/ic_delete" />
         </LinearLayout>
 
-        <ImageButton
-            android:id="@+id/btn_switch_model"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="Switch Model"
-            android:src="@drawable/ic_model" />
+        <com.google.android.material.divider.MaterialDivider
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            app:dividerColor="#E2E8F0" />
 
-        <ImageButton
-            android:id="@+id/btn_info"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_marginStart="4dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="Model Info"
-            android:src="@drawable/ic_info" />
-
-        <ImageButton
-            android:id="@+id/btn_clear"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_marginStart="4dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="Clear Chat"
-            android:src="@drawable/ic_delete" />
-    </LinearLayout>
-
-    <com.google.android.material.divider.MaterialDivider
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        app:dividerColor="#E2E8F0" />
-
-    <!-- Status Banner -->
-    <TextView
-        android:id="@+id/gguf"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="#F1F5F9"
-        android:paddingHorizontal="16dp"
-        android:paddingVertical="6dp"
-        android:text="⚡ Ready (Select Qwen3 model file to start)"
-        android:textColor="#475569"
-        android:textSize="12sp" />
-
-    <!-- Chat Messages -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/messages"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:clipToPadding="false"
-        android:paddingVertical="8dp"
-        android:scrollbars="vertical"
-        tools:listitem="@layout/item_message_assistant" />
-
-    <!-- Input Bar -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="#FFFFFF"
-        android:elevation="4dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingHorizontal="12dp"
-        android:paddingVertical="8dp">
-
-        <EditText
-            android:id="@+id/user_input"
-            android:layout_width="0dp"
+        <!-- Status Banner -->
+        <TextView
+            android:id="@+id/gguf"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:background="#F1F5F9"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="6dp"
+            android:text="⚡ Ready (100% Offline Local Model)"
+            android:textColor="#475569"
+            android:textSize="12sp" />
+
+        <!-- Chat Messages -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/messages"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
             android:layout_weight="1"
-            android:background="@null"
-            android:enabled="false"
-            android:hint="Pick a GGUF model file to start..."
-            android:maxLines="4"
-            android:paddingHorizontal="12dp"
+            android:clipToPadding="false"
             android:paddingVertical="8dp"
-            android:textColor="#0F172A"
-            android:textColorHint="#94A3B8"
-            android:textSize="15sp" />
+            android:scrollbars="vertical"
+            tools:listitem="@layout/item_message_assistant" />
 
-        <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/fab"
-            android:layout_width="wrap_content"
+        <!-- Input Bar -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_margin="4dp"
-            android:enabled="true"
-            android:src="@drawable/outline_folder_open_24"
-            app:fabSize="mini"
-            style="@style/Widget.Material3.FloatingActionButton.Primary" />
+            android:background="#FFFFFF"
+            android:elevation="4dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="8dp">
+
+            <EditText
+                android:id="@+id/user_input"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@null"
+                android:enabled="false"
+                android:hint="Pick a GGUF model file to start..."
+                android:maxLines="4"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="8dp"
+                android:textColor="#0F172A"
+                android:textColorHint="#94A3B8"
+                android:textSize="15sp" />
+
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/fab"
+                style="@style/Widget.Material3.FloatingActionButton.Primary"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="4dp"
+                android:enabled="true"
+                android:src="@drawable/outline_folder_open_24"
+                app:fabSize="mini" />
+        </LinearLayout>
     </LinearLayout>
 
-</LinearLayout>
+    <!-- ChatGPT Dark Sidebar Navigation Drawer -->
+    <LinearLayout
+        android:id="@+id/navigation_drawer"
+        android:layout_width="280dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:background="#0F172A"
+        android:clickable="true"
+        android:focusable="true"
+        android:orientation="vertical"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="16dp">
+
+        <!-- Sidebar Header -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingBottom="12dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="ChatGPT Edge AI"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_new_chat"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="New Chat"
+                android:textColor="#FFFFFF"
+                app:icon="@drawable/ic_add"
+                app:iconTint="#FFFFFF" />
+        </LinearLayout>
+
+        <com.google.android.material.divider.MaterialDivider
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            app:dividerColor="#334155" />
+
+        <!-- History Title -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="16dp"
+            android:paddingBottom="8dp"
+            android:text="SAVED CHAT HISTORY (JSON)"
+            android:textColor="#64748B"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <!-- Chat History RecyclerView -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/history_rv"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:clipToPadding="false"
+            android:scrollbars="vertical"
+            tools:listitem="@layout/item_chat_session" />
+
+        <com.google.android.material.divider.MaterialDivider
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            app:dividerColor="#334155" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="12dp"
+            android:text="⚡ 100% Offline Local Inference"
+            android:textColor="#94A3B8"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+</androidx.drawerlayout.widget.DrawerLayout>
