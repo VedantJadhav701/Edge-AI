@@ -195,10 +195,15 @@ class MainActivity : AppCompatActivity() {
         val internalModels = appModelsDir.listFiles()?.filter { it.name.endsWith(".gguf") } ?: emptyList()
 
         if (internalModels.isNotEmpty()) {
-            val defaultModel = internalModels.firstOrNull { it.name.contains("Bonsai", ignoreCase = true) }
+            val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+            val savedFilename = prefs.getString(KEY_LAST_USED_MODEL, null)
+
+            val selectedModel = internalModels.firstOrNull { it.name.equals(savedFilename, ignoreCase = true) }
+                ?: internalModels.firstOrNull { it.name.contains("Bonsai", ignoreCase = true) }
                 ?: internalModels.first()
-            val cleanName = cleanModelDisplayName(defaultModel.name)
-            loadModelFileDirectly(cleanName, defaultModel)
+
+            val cleanName = cleanModelDisplayName(selectedModel.name)
+            loadModelFileDirectly(cleanName, selectedModel)
         } else {
             withContext(Dispatchers.Main) {
                 ggufTv.text = "⚡ Please select a GGUF model file to start"
@@ -216,8 +221,10 @@ class MainActivity : AppCompatActivity() {
             val optionsList = mutableListOf<String>()
             internalModels.forEach { file ->
                 val cleanName = cleanModelDisplayName(file.name)
+                val sizeMb = file.length() / (1024.0 * 1024.0)
+                val sizeStr = if (sizeMb >= 1024) String.format("%.2f GB", sizeMb / 1024.0) else String.format("%.1f MB", sizeMb)
                 val marker = if (cleanName == activeModelName && isModelReady) " (Active)" else ""
-                optionsList.add("⚡ $cleanName$marker")
+                optionsList.add("⚡ $cleanName • $sizeStr$marker")
             }
             optionsList.add("📂 Select new GGUF file from storage...")
 
@@ -345,6 +352,11 @@ class MainActivity : AppCompatActivity() {
             }
             activeModelName = modelDisplayName
 
+            getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                .edit()
+                .putString(KEY_LAST_USED_MODEL, modelFile.name)
+                .apply()
+
             withContext(Dispatchers.Main) {
                 isModelReady = true
                 subtitleTv.text = "$activeModelName • ARM Neon KleidiAI"
@@ -413,7 +425,7 @@ class MainActivity : AppCompatActivity() {
 
         generationJob = lifecycleScope.launch(Dispatchers.Default) {
             try {
-                engine.sendUserPrompt(userMsg, 256)
+                engine.sendUserPrompt(userMsg, 512)
                     .collect { token ->
                         tokenCount++
 
@@ -489,10 +501,10 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 if (isModelReady) {
-                    engine.cleanUp()
+                    engine.setSystemPrompt("You are a helpful assistant")
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error cleaning up engine on clear chat", e)
+                Log.e(TAG, "Error resetting engine on clear chat", e)
             }
         }
         messages.clear()
@@ -506,12 +518,14 @@ class MainActivity : AppCompatActivity() {
             .setTitle("Active Model Info")
             .setMessage(
                 "• Active Model: $activeModelName\n" +
+                "• Quantization: Q1_0 (1-bit PrismML)\n" +
                 "• Runtime: llama.cpp native\n" +
                 "• Acceleration: ARM Neon + KleidiAI\n" +
                 "• Device: Moto G54 5G\n" +
-                "• Mode: 100% Offline\n" +
+                "• Mode: 100% Offline & Private\n" +
                 "• Context Window: 4096 tokens\n" +
-                "• Thread Count: 1 CPU Thread (Perfect Quality Mode)"
+                "• CPU Threads: 4 Threads\n\n" +
+                "💡 Note: Q1_0 is a 1-bit compressed format designed for ultra-fast, low-RAM edge execution."
             )
             .setPositiveButton("OK", null)
             .show()
@@ -557,6 +571,8 @@ class MainActivity : AppCompatActivity() {
         private val TAG = MainActivity::class.java.simpleName
         private const val DIRECTORY_MODELS = "models"
         private const val FILE_EXTENSION_GGUF = ".gguf"
+        private const val PREFS_NAME = "EdgeAiPrefs"
+        private const val KEY_LAST_USED_MODEL = "last_used_model_filename"
     }
 }
 
