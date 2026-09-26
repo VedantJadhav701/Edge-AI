@@ -107,15 +107,16 @@ static llama_context *init_context(llama_model *model, const int n_ctx = DEFAULT
 static common_sampler *new_sampler(float temp) {
     common_params_sampling sparams;
 
-    // Qwen3 recommended non-thinking settings
     sparams.temp = temp;
-    sparams.top_p = 0.8f;
-    sparams.top_k = 20;
-    sparams.min_p = 0.0f;
+    sparams.top_p = 0.9f;
+    sparams.top_k = 40;
+    sparams.min_p = 0.05f;
 
-    // Mild repetition protection
-    sparams.penalty_last_n = 64;
-    sparams.penalty_repeat = 1.05f;
+    // Strong repetition protection for 1-bit models (e.g. Bonsai-8B)
+    sparams.penalty_last_n = 256;
+    sparams.penalty_repeat = 1.18f;
+    sparams.penalty_freq = 0.50f;
+    sparams.penalty_present = 0.50f;
 
     return common_sampler_init(g_model, sparams);
 }

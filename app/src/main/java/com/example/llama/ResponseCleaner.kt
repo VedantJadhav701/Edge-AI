@@ -12,6 +12,9 @@ object ResponseCleaner {
 
     private val ansiRegex = Regex("\\u001B\\[[0-9;]*[a-zA-Z]")
 
+    private val singleCharRepetitionRegex = Regex("(.)\\1{7,}")
+    private val phraseRepetitionRegex = Regex("(.{2,12})\\1{3,}")
+
     fun cleanRawTokenStream(raw: String): String {
         var text = raw
 
@@ -37,6 +40,14 @@ object ResponseCleaner {
         val thinkStart = text.indexOf("<think>")
         if (thinkStart >= 0) {
             text = text.substring(0, thinkStart)
+        }
+
+        // Filter out degenerate token repetition loops (e.g. 00000000000000)
+        text = text.replace(singleCharRepetitionRegex) { match ->
+            match.groupValues[1].repeat(2)
+        }
+        text = text.replace(phraseRepetitionRegex) { match ->
+            match.groupValues[1].repeat(2)
         }
 
         return text
