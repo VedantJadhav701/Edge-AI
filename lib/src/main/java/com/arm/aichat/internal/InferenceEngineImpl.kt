@@ -107,6 +107,9 @@ internal class InferenceEngineImpl private constructor(
     private external fun unload()
 
     @FastNative
+    private external fun resetBusyFlag()
+
+    @FastNative
     private external fun shutdown()
 
     private val _state =
@@ -232,7 +235,7 @@ internal class InferenceEngineImpl private constructor(
             processUserPrompt(message, predictLength).let { result ->
                 if (result != 0) {
                     Log.e(TAG, "Failed to process user prompt: $result")
-                    return@flow
+                    throw IllegalStateException("Failed to process user prompt: error code $result")
                 }
             }
 
@@ -257,6 +260,12 @@ internal class InferenceEngineImpl private constructor(
             Log.e(TAG, "Error during generation!", e)
             _state.value = InferenceEngine.State.Error(e)
             throw e
+        } finally {
+            try {
+                resetBusyFlag()
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to reset busy flag", e)
+            }
         }
     }.flowOn(llamaDispatcher)
 

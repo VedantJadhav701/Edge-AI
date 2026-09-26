@@ -537,6 +537,7 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_processUserPrompt(
     // Decode user tokens in batches
     if (decode_tokens_in_batches(g_context, g_batch, user_tokens, current_position, true)) {
         LOGe("%s: llama_decode() failed!", __func__);
+        g_busy.store(false);
         return 2;
     }
 
@@ -604,7 +605,7 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_generateNextToken(
             chat_add_and_format(ROLE_ASSISTANT, assistant_ss.str());
             assistant_ss.str("");
         }
-        g_busy = false;
+        g_busy.store(false);
         return nullptr;
     }
 
@@ -617,7 +618,7 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_generateNextToken(
     common_batch_add(g_batch, new_token_id, current_position, {0}, true);
     if (llama_decode(g_context, g_batch) != 0) {
         LOGe("%s: llama_decode() failed for generated token", __func__);
-        g_busy = false;
+        g_busy.store(false);
         return nullptr;
     }
 
@@ -631,7 +632,7 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_generateNextToken(
             chat_add_and_format(ROLE_ASSISTANT, assistant_ss.str());
             assistant_ss.str("");
         }
-        g_busy = false;
+        g_busy.store(false);
         return nullptr;
     }
 
@@ -654,14 +655,19 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_generateNextToken(
     return result;
 }
 
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_arm_aichat_internal_InferenceEngineImpl_resetBusyFlag(JNIEnv * /*unused*/, jobject /*unused*/) {
+    g_busy.store(false);
+}
 
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_arm_aichat_internal_InferenceEngineImpl_unload(JNIEnv * /*unused*/, jobject /*unused*/) {
+    g_busy.store(false);
     // Reset long-term & short-term states
     reset_long_term_states();
     reset_short_term_states();
-    g_busy = false;
 
     // Free up resources
     common_sampler_free(g_sampler);
