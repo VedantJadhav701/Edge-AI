@@ -34,7 +34,7 @@ constexpr int   N_THREADS_HEADROOM      = 2;
 constexpr int   DEFAULT_CONTEXT_SIZE    = 4096;
 constexpr int   OVERFLOW_HEADROOM       = 4;
 constexpr int   BATCH_SIZE              = 512;
-constexpr float DEFAULT_SAMPLER_TEMP    = 0.15f;
+constexpr float DEFAULT_SAMPLER_TEMP    = 0.5f;
 
 static llama_model                      * g_model;
 static llama_context                    * g_context;
@@ -83,9 +83,11 @@ static llama_context *init_context(llama_model *model, const int n_ctx = DEFAULT
         return nullptr;
     }
 
-    // Single-thread setup for stable, high-quality 1-bit quantization inference (~1.8 tok/s)
-    const int n_threads = 1;
-    LOGi("%s: Using %d thread for stable 1-bit inference", __func__, n_threads);
+    // Dynamic multi-threading setup (caps at 4 threads for optimal performance)
+    const int n_threads = std::max(N_THREADS_MIN, std::min(N_THREADS_MAX,
+                                                     (int) std::thread::hardware_concurrency() -
+                                                     N_THREADS_HEADROOM));
+    LOGi("%s: Using %d threads", __func__, n_threads);
 
     // Context parameters setup
     llama_context_params ctx_params = llama_context_default_params();
